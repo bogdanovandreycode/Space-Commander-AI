@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Micro Strategy — Ollama AI</title>
+    <link rel="stylesheet" href="civ3.css">
+</head>
+<body>
+<div class="app">
+    <main class="card">
+        <div id="ui">
+            <div class="credits">
+                Кредиты: <span id="goldDisp">15</span>
+                <span class="income">(+5/планета)</span>
+            </div>
+            <button id="endTurnBtn" type="button">Конец хода</button>
+        </div>
+
+        <div id="message">Твой ход, Командор!</div>
+        <div class="canvas-wrap"><canvas id="gameCanvas"></canvas></div>
+    </main>
+
+    <aside class="card side-card">
+        <div class="side">
+            <section class="section">
+                <h2>Локальный AI</h2>
+                <label for="modelInput">Модель Ollama</label>
+                <div class="row">
+                    <input id="modelInput" value="deepseek-r1:8b" autocomplete="off" spellcheck="false">
+                    <button id="testOllamaBtn" type="button">Проверить</button>
+                </div>
+                <div class="status">
+                    <span id="ollamaDot" class="dot"></span>
+                    <span id="ollamaStatus">Соединение ещё не проверено</span>
+                </div>
+            </section>
+
+            <section class="section">
+                <label for="aiMode">Режим противника</label>
+                <select id="aiMode">
+                    <option value="ollama">Ollama + резервный алгоритм</option>
+                    <option value="classic">Только обычный алгоритм</option>
+                </select>
+            </section>
+
+            <section class="section">
+                <h2>Красный командир</h2>
+                <div id="chat">
+                    <div class="chat-item">
+                        <div class="chat-turn">Перед началом партии</div>
+                        Канал связи открыт. Жду вашего первого хода.
+                    </div>
+                </div>
+            </section>
+
+            <section class="section hint">
+                Игра отправляет Ollama только компактное состояние партии и перечень уже разрешённых действий. JavaScript повторно проверяет каждую выбранную команду перед выполнением.
+            </section>
+        </div>
+    </aside>
+</div>
+
+<div id="buildMenu"></div>
+
+<script src="civ3.js" defer></script>
+</body>
+</html>

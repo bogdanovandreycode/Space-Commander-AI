@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Micro Strategy — Ollama AI</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #070b13;
+            --panel: #121a28;
+            --panel-2: #192436;
+            --border: #2b3b54;
+            --text: #e7edf7;
+            --muted: #91a1b8;
+            --blue: #3182ce;
+            --blue-light: #63b3ed;
+            --red: #e53e3e;
+            --red-light: #fc8181;
+            --yellow: #f6e05e;
+            --green: #48bb78;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 12px;
+            background:
+                radial-gradient(circle at top, rgba(49, 130, 206, 0.12), transparent 34%),
+                var(--bg);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            display: flex;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+
+        .app {
+            width: min(100%, 860px);
+            display: grid;
+            grid-template-columns: minmax(320px, 500px) minmax(260px, 1fr);
+            gap: 12px;
+            align-items: start;
+        }
+
+        .card {
+            background: rgba(18, 26, 40, 0.96);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+            overflow: hidden;
+        }
+
+        #ui {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .credits { font-weight: 700; }
+        .income { font-size: 12px; color: var(--muted); font-weight: 400; }
+
+        button, input, select { font: inherit; }
+
+        button {
+            padding: 9px 13px;
+            border: 0;
+            border-radius: 8px;
+            background: var(--blue);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:hover:not(:disabled) { filter: brightness(1.08); }
+        button:active:not(:disabled) { transform: translateY(1px); }
+        button:disabled { opacity: 0.48; cursor: not-allowed; }
+
+        #message {
+            min-height: 44px;
+            padding: 11px 14px;
+            color: var(--yellow);
+            font-weight: 700;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .canvas-wrap {
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            background: #00040a;
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(66, 153, 225, 0.16);
+            touch-action: none;
+        }
+
+        .side { padding: 14px; }
+        .side h2 { margin: 0 0 12px; font-size: 17px; }
+        .section + .section { margin-top: 18px; }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 11px;
+            color: var(--text);
+            background: #0b1220;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+        }
+
+        input:focus, select:focus { border-color: var(--blue-light); }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+        }
+
+        .status {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: #718096;
+            flex: 0 0 auto;
+        }
+
+        .dot.ok { background: var(--green); box-shadow: 0 0 9px rgba(72, 187, 120, 0.65); }
+        .dot.err { background: var(--red-light); }
+        .dot.busy { background: var(--yellow); }
+
+        #chat {
+            min-height: 180px;
+            max-height: 330px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #0b1220;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+        }
+
+        .chat-item {
+            padding: 9px 10px;
+            background: var(--panel-2);
+            border-left: 3px solid var(--red-light);
+            border-radius: 7px;
+            line-height: 1.42;
+            font-size: 13px;
+        }
+
+        .chat-item + .chat-item { margin-top: 8px; }
+        .chat-turn { color: var(--muted); font-size: 11px; margin-bottom: 3px; }
+
+        .hint {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        #buildMenu {
+            display: none;
+            position: fixed;
+            width: min(260px, calc(100vw - 20px));
+            padding: 10px;
+            z-index: 20;
+            background: rgba(18, 26, 40, 0.98);
+            border: 1px solid #4a5568;
+            border-radius: 10px;
+            box-shadow: 0 18px 45px rgba(0,0,0,.45);
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .build-title { margin-bottom: 3px; color: #cbd5e0; font-size: 12px; }
+        .build-btn {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            text-align: left;
+            background: #34445b;
+            font-size: 13px;
+        }
+        .cancel { margin-top: 3px; background: var(--red); }
+
+        @media (max-width: 760px) {
+            body { padding: 0; }
+            .app { grid-template-columns: 1fr; gap: 0; }
+            .card { border-radius: 0; }
+            .side-card { border-top: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <main class="card">
+        <div id="ui">
+            <div class="credits">
+                Кредиты: <span id="goldDisp">15</span>
+                <span class="income">(+5/планета)</span>
+            </div>
+            <button id="endTurnBtn" type="button">Конец хода</button>
+        </div>
+
+        <div id="message">Твой ход, Командор!</div>
+        <div class="canvas-wrap"><canvas id="gameCanvas"></canvas></div>
+    </main>
+
+    <aside class="card side-card">
+        <div class="side">
+            <section class="section">
+                <h2>Локальный AI</h2>
+                <label for="modelInput">Модель Ollama</label>
+                <div class="row">
+                    <input id="modelInput" value="deepseek-r1:8b" autocomplete="off" spellcheck="false">
+                    <button id="testOllamaBtn" type="button">Проверить</button>
+                </div>
+                <div class="status">
+                    <span id="ollamaDot" class="dot"></span>
+                    <span id="ollamaStatus">Соединение ещё не проверено</span>
+                </div>
+            </section>
+
+            <section class="section">
+                <label for="aiMode">Режим противника</label>
+                <select id="aiMode">
+                    <option value="ollama">Ollama + резервный алгоритм</option>
+                    <option value="classic">Только обычный алгоритм</option>
+                </select>
+            </section>
+
+            <section class="section">
+                <h2>Красный командир</h2>
+                <div id="chat">
+                    <div class="chat-item">
+                        <div class="chat-turn">Перед началом партии</div>
+                        Канал связи открыт. Жду вашего первого хода.
+                    </div>
+                </div>
+            </section>
+
+            <section class="section hint">
+                Игра отправляет Ollama только компактное состояние партии и перечень уже разрешённых действий. JavaScript повторно проверяет каждую выбранную команду перед выполнением.
+            </section>
+        </div>
+    </aside>
+</div>
+
+<div id="buildMenu"></div>
+
+<script>
+'use strict';
+
+const OLLAMA_URL = 'http://localhost:11434/api/chat';
+const OLLAMA_TAGS_URL = 'http://localhost:11434/api/tags';
+const AI_OWNER = 1;
+const PLAYER_OWNER = 0;
+const NEUTRAL_OWNER = -1;
+const mapSize = 8;
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const goldDisp = document.getElementById('goldDisp');
+const msgDisp = document.getElementById('message');
+const endTurnBtn = document.getElementById('endTurnBtn');
+const buildMenu = document.getElementById('buildMenu');
+const modelInput = document.getElementById('modelInput');
+const testOllamaBtn = document.getElementById('testOllamaBtn');
+const ollamaDot = document.getElementById('ollamaDot');
+const ollamaStatus = document.getElementById('ollamaStatus');
+const aiMode = document.getElementById('aiMode');
+const chat = document.getElementById('chat');
+
+const UNIT_TYPES = Object.freeze({
+    scout:       { name: 'Разведчик', cost: 10, hp: 5,  atk: 0,  sym: 'S' },
+    fighter:     { name: 'Истреб.',   cost: 15, hp: 10, atk: 4,  sym: 'F' },
+    corvette:    { name: 'Корвет',    cost: 25, hp: 20, atk: 8,  sym: 'C' },
+    frigate:     { name: 'Фрегат',    cost: 40, hp: 35, atk: 15, sym: 'R' },
+    dreadnought: { name: 'Дредноут',  cost: 70, hp: 60, atk: 25, sym: 'D' }
+});
+
+let tileSize = 62.5;
+let currentPlayer = PLAYER_OWNER;
+let turnNumber = 1;
+let gold = [15, 15];
+let planets = [];
+let units = [];
+let selectedTile = null;
+let buildingPlanet = null;
+let nextPlanetId = 1;
+let nextUnitId = 1;
+let gameFinished = false;
+let aiRequestController = null;
+
+function resizeCanvas() {
+    const available = Math.min(window.innerWidth - 20, 500);
+    tileSize = Math.max(36, available / mapSize);
+    canvas.width = Math.round(tileSize * mapSize);
+    canvas.height = Math.round(tileSize * mapSize);
+    draw();
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+function makePlanet(x, y, owner) {
+    return { id: nextPlanetId++, x, y, owner, hp: 50 };
+}
+
+function makeUnit(x, y, owner, type, moved = false) {
+    return {
+        id: nextUnitId++,
+        x,
+        y,
+        owner,
+        type,
+        hp: UNIT_TYPES[type].hp,
+        moved
+    };
+}
+
+function initMap() {
+    planets = [
+        makePlanet(0, 0, PLAYER_OWNER),
+        makePlanet(mapSize - 1, mapSize - 1, AI_OWNER)
+    ];
+
+    let attempts = 0;
+    while (planets.length < 6 && attempts < 300) {
+        const x = Math.floor(Math.random() * mapSize);
+        const y = Math.floor(Math.random() * mapSize);
+        const tooClose = planets.some(p => Math.abs(p.x - x) <= 1 && Math.abs(p.y - y) <= 1);
+        if (!tooClose) planets.push(makePlanet(x, y, NEUTRAL_OWNER));
+        attempts++;
+    }
+
+    units = [
+        makeUnit(1, 0, PLAYER_OWNER, 'scout'),
+        makeUnit(mapSize - 2, mapSize - 1, AI_OWNER, 'scout')
+    ];
+
+    generateBuildMenu();
+    resizeCanvas();
+}
+
+function generateBuildMenu() {
+    let html = '<div class="build-title">Верфь:</div>';
+    for (const [key, unit] of Object.entries(UNIT_TYPES)) {
+        html += `<button class="build-btn" type="button" data-build="${key}" id="btn_${key}">
+            <span>${unit.name} (A:${unit.atk} H:${unit.hp})</span><span>${unit.cost} кр.</span>
+        </button>`;
+    }
+    html += '<button class="cancel" type="button" id="cancelBuildBtn">Отмена</button>';
+    buildMenu.innerHTML = html;
+
+    buildMenu.querySelectorAll('[data-build]').forEach(button => {
+        button.addEventListener('click', () => buildPlayerUnit(button.dataset.build));
+    });
+    document.getElementById('cancelBuildBtn').addEventListener('click', closeBuildMenu);
+}
+
+function draw() {
+    if (!ctx || !canvas.width) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#2d3748';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < mapSize; x++) {
+        for (let y = 0; y < mapSize; y++) {
+            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+        }
+    }
+
+    drawStars();
+
+    if (selectedTile) {
+        ctx.fillStyle = 'rgba(66, 153, 225, 0.28)';
+        ctx.fillRect(selectedTile.x * tileSize, selectedTile.y * tileSize, tileSize, tileSize);
+    }
+
+    for (const planet of planets) drawPlanet(planet);
+    for (const unit of units) drawUnit(unit);
+
+    goldDisp.textContent = String(gold[PLAYER_OWNER]);
+}
+
+function drawStars() {
+    ctx.fillStyle = 'rgba(255,255,255,.72)';
+    for (let i = 0; i < 30; i++) {
+        const x = ((i * 97 + 31) % 997) / 997 * canvas.width;
+        const y = ((i * 193 + 17) % 991) / 991 * canvas.height;
+        ctx.fillRect(x, y, i % 7 === 0 ? 1.5 : 1, i % 7 === 0 ? 1.5 : 1);
+    }
+}
+
+function drawPlanet(planet) {
+    const cx = planet.x * tileSize + tileSize / 2;
+    const cy = planet.y * tileSize + tileSize / 2;
+    const radius = tileSize * 0.36;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = planet.owner === PLAYER_OWNER ? '#3182ce'
+        : planet.owner === AI_OWNER ? '#e53e3e'
+        : '#8795a8';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx - radius * 0.25, cy - radius * 0.25, radius * 0.33, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.11)';
+    ctx.fill();
+
+    ctx.fillStyle = 'white';
+    ctx.font = `${Math.max(9, tileSize * 0.15)}px ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.ceil(planet.hp)}HP`, cx, cy);
+}
+
+function drawUnit(unit) {
+    const stats = UNIT_TYPES[unit.type];
+    if (!stats) return;
+
+    const cx = unit.x * tileSize + tileSize / 2;
+    const cy = unit.y * tileSize + tileSize / 2;
+    const r = tileSize * 0.23;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r, cy + r);
+    ctx.lineTo(cx - r, cy + r);
+    ctx.closePath();
+    ctx.fillStyle = unit.owner === PLAYER_OWNER
+        ? (unit.moved ? '#4a5568' : '#63b3ed')
+        : (unit.moved ? '#742a2a' : '#fc8181');
+    ctx.fill();
+    ctx.strokeStyle = '#111827';
+    ctx.stroke();
+
+    ctx.fillStyle = 'white';
+    ctx.font = `700 ${Math.max(10, tileSize * 0.19)}px ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(stats.sym, cx, cy + 1);
+
+    const barWidth = tileSize * 0.36;
+    const hp = clamp(unit.hp, 0, stats.hp);
+    ctx.fillStyle = '#c53030';
+    ctx.fillRect(cx - barWidth / 2, cy + tileSize * 0.27, barWidth, 3);
+    ctx.fillStyle = '#48bb78';
+    ctx.fillRect(cx - barWidth / 2, cy + tileSize * 0.27, barWidth * (hp / stats.hp), 3);
+}
+
+canvas.addEventListener('pointerdown', event => {
+    if (currentPlayer !== PLAYER_OWNER || gameFinished) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = Math.floor(((event.clientX - rect.left) * scaleX) / tileSize);
+    const y = Math.floor(((event.clientY - rect.top) * scaleY) / tileSize);
+
+    if (!insideMap(x, y)) return;
+
+    const clickedUnit = unitAt(x, y);
+    const clickedPlanet = planetAt(x, y);
+    closeBuildMenu();
+
+    if (selectedTile) {
+        const selectedUnit = units.find(u =>
+            u.x === selectedTile.x && u.y === selectedTile.y && u.owner === PLAYER_OWNER
+        );
+
+        if (selectedUnit && !selectedUnit.moved) {
+            performPlayerOrder(selectedUnit, x, y, clickedUnit, clickedPlanet);
+        }
+        selectedTile = null;
+    } else if (clickedUnit && clickedUnit.owner === PLAYER_OWNER) {
+        selectedTile = { x, y };
+        msgDisp.textContent = clickedUnit.moved
+            ? 'Этот корабль уже действовал.'
+            : 'Корабль готов к приказу.';
+    } else if (clickedPlanet && clickedPlanet.owner === PLAYER_OWNER && !clickedUnit) {
+        openBuildMenu(clickedPlanet, event.clientX, event.clientY);
+    }
+
+    cleanUpAndCheckVictory();
+    draw();
+});
+
+function performPlayerOrder(unit, x, y, clickedUnit, clickedPlanet) {
+    if (manhattan(unit, { x, y }) !== 1) {
+        msgDisp.textContent = 'Можно действовать только на соседней клетке.';
+        return;
+    }
+
+    const stats = UNIT_TYPES[unit.type];
+
+    if (clickedUnit) {
+        if (clickedUnit.owner === PLAYER_OWNER) {
+            msgDisp.textContent = 'Клетка занята твоим кораблём.';
+            return;
+        }
+        if (stats.atk <= 0) {
+            msgDisp.textContent = 'Разведчик не может атаковать.';
+            return;
+        }
+        resolveShipAttack(unit, clickedUnit);
+        unit.moved = true;
+        msgDisp.textContent = 'Атака корабля!';
+        return;
+    }
+
+    if (clickedPlanet && clickedPlanet.owner !== PLAYER_OWNER) {
+        if (clickedPlanet.owner === NEUTRAL_OWNER && unit.type === 'scout') {
+            clickedPlanet.owner = PLAYER_OWNER;
+            clickedPlanet.hp = 50;
+            unit.hp = 0;
+            msgDisp.textContent = 'Планета колонизирована!';
+            return;
+        }
+
+        if (clickedPlanet.owner === AI_OWNER && stats.atk > 0) {
+            clickedPlanet.hp -= stats.atk;
+            unit.moved = true;
+            checkPlanetStatus(clickedPlanet);
+            msgDisp.textContent = 'Орбитальная бомбардировка!';
+            return;
+        }
+    }
+
+    if (!clickedUnit) {
+        unit.x = x;
+        unit.y = y;
+        unit.moved = true;
+        msgDisp.textContent = 'Корабль перемещён.';
+    }
+}
+
+function resolveShipAttack(attacker, defender) {
+    const attackerStats = UNIT_TYPES[attacker.type];
+    const defenderStats = UNIT_TYPES[defender.type];
+    defender.hp -= attackerStats.atk;
+    if (defender.hp > 0 && defenderStats.atk > 0) {
+        attacker.hp -= defenderStats.atk / 2;
+    }
+}
+
+function openBuildMenu(planet, clientX, clientY) {
+    buildingPlanet = planet;
+    buildMenu.style.display = 'flex';
+    const width = 260;
+    buildMenu.style.left = `${Math.max(10, Math.min(clientX, window.innerWidth - width - 10))}px`;
+    buildMenu.style.top = `${Math.max(10, Math.min(clientY, window.innerHeight - 330))}px`;
+
+    const occupied = Boolean(unitAt(planet.x, planet.y));
+    for (const [key, stats] of Object.entries(UNIT_TYPES)) {
+        document.getElementById(`btn_${key}`).disabled = occupied || gold[PLAYER_OWNER] < stats.cost;
+    }
+}
+
+function closeBuildMenu() {
+    buildMenu.style.display = 'none';
+    buildingPlanet = null;
+}
+
+function buildPlayerUnit(type) {
+    const stats = UNIT_TYPES[type];
+    if (!stats || !buildingPlanet) return;
+
+    if (unitAt(buildingPlanet.x, buildingPlanet.y)) {
+        msgDisp.textContent = 'Верфь занята кораблём.';
+    } else if (gold[PLAYER_OWNER] < stats.cost) {
+        msgDisp.textContent = 'Недостаточно кредитов.';
+    } else {
+        units.push(makeUnit(buildingPlanet.x, buildingPlanet.y, PLAYER_OWNER, type, true));
+        gold[PLAYER_OWNER] -= stats.cost;
+        msgDisp.textContent = `${stats.name}: корабль построен.`;
+    }
+
+    closeBuildMenu();
+    draw();
+}
+
+endTurnBtn.addEventListener('click', endPlayerTurn);
+testOllamaBtn.addEventListener('click', testOllamaConnection);
+
+async function endPlayerTurn() {
+    if (currentPlayer !== PLAYER_OWNER || gameFinished) return;
+
+    currentPlayer = AI_OWNER;
+    selectedTile = null;
+    closeBuildMenu();
+    endTurnBtn.disabled = true;
+    msgDisp.textContent = 'Красный командир оценивает обстановку...';
+
+    startOwnerTurn(AI_OWNER);
+    draw();
+
+    await delay(300);
+
+    let usedFallback = false;
+    if (aiMode.value === 'ollama') {
+        try {
+            await runOllamaTurn();
+        } catch (error) {
+            console.error('Ollama AI error:', error);
+            usedFallback = true;
+            setOllamaStatus('err', humanizeError(error));
+            addChatMessage(`Связь нарушена. Перехожу на резервный протокол. (${humanizeError(error)})`);
+            await runClassicAiTurn();
+        }
+    } else {
+        await runClassicAiTurn();
+    }
+
+    cleanUpAndCheckVictory();
+    if (gameFinished) return;
+
+    startOwnerTurn(PLAYER_OWNER);
+    currentPlayer = PLAYER_OWNER;
+    turnNumber++;
+    endTurnBtn.disabled = false;
+    msgDisp.textContent = usedFallback
+        ? 'Твой ход. Ollama не ответила — противник сходил обычным алгоритмом.'
+        : 'Твой ход, Командор!';
+    draw();
+}
+
+function startOwnerTurn(owner) {
+    gold[owner] += planets.filter(p => p.owner === owner).length * 5;
+    units.filter(u => u.owner === owner).forEach(unit => {
+        unit.moved = false;
+        const friendlyPlanet = planets.find(p =>
+            p.x === unit.x && p.y === unit.y && p.owner === owner
+        );
+        if (friendlyPlanet) {
+            unit.hp = Math.min(unit.hp + 1, UNIT_TYPES[unit.type].hp);
+        }
+    });
+    sanitizeHitPoints();
+}
+
+async function runOllamaTurn() {
+    const legalActions = generateLegalAiActions();
+    const stateBefore = createReadableAiState(legalActions);
+
+    if (legalActions.length === 0) {
+        addChatMessage('Флот не располагает допустимыми приказами. Сохраняем позиции.');
+        return;
+    }
+
+    // Запрос №1: модель рассуждает и выбирает только приказы.
+    setOllamaStatus('busy', 'Командир анализирует карту...');
+    const decision = await requestOllamaJson({
+        think: true,
+        timeoutMs: 300000,
+        systemPrompt: buildDecisionSystemPrompt(),
+        userPayload: stateBefore,
+        schema: {
+            type: 'object',
+            properties: {
+                actionIds: {
+                    type: 'array',
+                    description: 'ID разрешённых действий в порядке исполнения.',
+                    items: { type: 'integer' },
+                    maxItems: 30
+                }
+            },
+            required: ['actionIds'],
+            additionalProperties: false
+        },
+        options: {
+            temperature: 0.1,
+            num_predict: 4096,
+            num_ctx: 8192
+        }
+    });
+
+    validateDecisionShape(decision);
+
+    const selectedIds = [...new Set(decision.actionIds)].slice(0, 30);
+    const executedActions = [];
+    const rejectedActionIds = [];
+
+    for (const actionId of selectedIds) {
+        const action = legalActions.find(candidate => candidate.id === actionId);
+        if (!action) {
+            rejectedActionIds.push(actionId);
+            continue;
+        }
+
+        if (executeValidatedAiAction(action)) {
+            executedActions.push(describeExecutedAction(action));
+            draw();
+            await delay(240);
+        } else {
+            rejectedActionIds.push(actionId);
+        }
+    }
+
+    if (executedActions.length === 0) {
+        addChatMessage('Предложенные приказы не прошли тактическую проверку. Перехожу на резервный план.');
+        await runClassicAiTurn();
+        setOllamaStatus('ok', `Подключено: ${getSelectedModel()}`);
+        return;
+    }
+
+    cleanUpAndCheckVictory();
+    const stateAfter = createReadableAiState([]);
+
+    // Запрос №2: без reasoning, только короткая реплика по реально исполненному ходу.
+    setOllamaStatus('busy', 'Командир составляет доклад...');
+
+    try {
+        const commentary = await requestOllamaJson({
+            think: false,
+            timeoutMs: 90000,
+            systemPrompt: buildCommentarySystemPrompt(),
+            userPayload: {
+                turn: turnNumber,
+                executedActions,
+                rejectedActionIds,
+                situationBefore: stripActionsFromState(stateBefore),
+                situationAfter: stripActionsFromState(stateAfter)
+            },
+            schema: {
+                type: 'object',
+                properties: {
+                    comment: {
+                        type: 'string',
+                        description: 'Реплика красного командира на русском, 1-3 коротких предложения.'
+                    }
+                },
+                required: ['comment'],
+                additionalProperties: false
+            },
+            options: {
+                temperature: 0.45,
+                num_predict: 220,
+                num_ctx: 4096
+            }
+        });
+
+        const comment = sanitizeComment(commentary.comment);
+        addChatMessage(comment || buildDeterministicTurnComment(executedActions));
+    } catch (commentError) {
+        console.warn('Ollama commentary error:', commentError);
+        addChatMessage(buildDeterministicTurnComment(executedActions));
+    }
+
+    setOllamaStatus('ok', `Подключено: ${getSelectedModel()}`);
+}
+
+async function requestOllamaJson({
+    think,
+    timeoutMs,
+    systemPrompt,
+    userPayload,
+    schema,
+    options
+}) {
+    aiRequestController?.abort();
+    aiRequestController = new AbortController();
+    const timeoutId = setTimeout(() => aiRequestController.abort(), timeoutMs);
+
+    try {
+        const response = await fetch(OLLAMA_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: aiRequestController.signal,
+            body: JSON.stringify({
+                model: getSelectedModel(),
+                stream: false,
+                think,
+                keep_alive: '10m',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: JSON.stringify(userPayload, null, 2) }
+                ],
+                format: schema,
+                options
+            })
+        });
+
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            throw new Error(`HTTP ${response.status}${body ? `: ${body.slice(0, 180)}` : ''}`);
+        }
+
+        const payload = await response.json();
+        let rawContent = payload?.message?.content;
+
+        // Reasoning-модели могут израсходовать весь num_predict на поле thinking
+        // и не успеть сформировать content. Ollama в таком случае возвращает
+        // done_reason: "length" и пустую строку content.
+        if (typeof rawContent !== 'string' || !rawContent.trim()) {
+            const thinking = typeof payload?.message?.thinking === 'string'
+                ? payload.message.thinking.trim()
+                : '';
+
+            if (think === true && payload?.done_reason === 'length' && thinking) {
+                console.warn(
+                    'Reasoning занял весь лимит ответа; выполняется короткий JSON-recovery запрос.',
+                    { evalCount: payload?.eval_count, thinkingLength: thinking.length }
+                );
+
+                const recoveryResponse = await fetch(OLLAMA_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: aiRequestController.signal,
+                    body: JSON.stringify({
+                        model: getSelectedModel(),
+                        stream: false,
+                        think: false,
+                        keep_alive: '10m',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Преобразуй готовый анализ в окончательный JSON строго по заданной JSON Schema. Не продолжай рассуждение, не добавляй пояснения и markdown.'
+                            },
+                            {
+                                role: 'user',
+                                content: JSON.stringify({
+                                    analysis: thinking,
+                                    allowedActionIds: Array.isArray(userPayload?.allowedActions)
+                                        ? userPayload.allowedActions.map(action => action.id)
+                                        : []
+                                })
+                            }
+                        ],
+                        format: schema,
+                        options: {
+                            temperature: 0,
+                            num_predict: 300,
+                            num_ctx: 4096
+                        }
+                    })
+                });
+
+                if (!recoveryResponse.ok) {
+                    const recoveryBody = await recoveryResponse.text().catch(() => '');
+                    throw new Error(
+                        `JSON-recovery HTTP ${recoveryResponse.status}` +
+                        (recoveryBody ? `: ${recoveryBody.slice(0, 180)}` : '')
+                    );
+                }
+
+                const recoveryPayload = await recoveryResponse.json();
+                rawContent = recoveryPayload?.message?.content;
+
+                if (typeof rawContent !== 'string' || !rawContent.trim()) {
+                    throw new Error('модель исчерпала лимит reasoning и recovery тоже вернул пустой ответ');
+                }
+            } else {
+                const reason = payload?.done_reason ? `; done_reason=${payload.done_reason}` : '';
+                throw new Error(`модель вернула пустой ответ${reason}`);
+            }
+        }
+
+        return parseModelJson(rawContent);
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('превышено время ожидания Ollama');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+        aiRequestController = null;
+    }
+}
+
+function getSelectedModel() {
+    return modelInput.value.trim() || 'deepseek-r1:8b';
+}
+
+function buildDecisionSystemPrompt() {
+    return `Ты управляешь КРАСНОЙ империей в маленькой пошаговой космической стратегии.
+Тебе переданы полное состояние карты и полный список действий, которые разрешены в начале этого хода.
+
+ТВОЯ ЗАДАЧА:
+1. Внимательно проанализировать карту, экономику, расстояния, здоровье кораблей и угрозы.
+2. Выбрать последовательность actionIds для этого хода.
+3. Вернуть только JSON по схеме. Никаких комментариев игроку в этом запросе.
+
+ВАЖНЫЕ ПРАВИЛА:
+- Красная империя обозначена как ai, синяя — player, серые планеты — neutral.
+- Цель: лишить игрока всех планет, но не терять последнюю собственную планету без необходимости.
+- Разведчик не атакует. Он нужен для колонизации нейтральной планеты.
+- Боевые корабли атакуют соседние корабли и планеты.
+- Один корабль может выполнить не более одного действия за ход.
+- На одной своей планете можно построить не более одного корабля за ход.
+- Не выбирай два перемещения в одну клетку.
+- Не выбирай несколько действий для одного корабля.
+- Учитывай общий бюджет всех выбранных покупок, а не стоимость каждой покупки отдельно.
+- Действия исполняются строго в указанном тобой порядке.
+- Покупка создаёт корабль на клетке планеты и может заблокировать дальнейшее перемещение на эту клетку.
+- Не обязан использовать все доступные действия.
+- Предпочитай конкретную цель: колонизация, защита последней планеты, уничтожение опасного корабля или наступление на планету игрока.
+- Не путай колонизацию нейтральной планеты с атакой.
+
+Используй внутреннее reasoning для расчёта, но держи его кратким: примерно 300–500 токенов. Не пересказывай все входные данные и не повторяй правила. Сразу оцени ближайшие цели, конфликты действий и бюджет, затем наружу верни только JSON с actionIds.`;
+}
+
+function buildCommentarySystemPrompt() {
+    return `Ты пишешь короткую реплику КРАСНОГО командира после уже завершённого хода.
+
+Тебе переданы:
+- executedActions: только реально выполненные и подтверждённые игрой действия;
+- rejectedActionIds: приказы, которые игра отклонила;
+- ситуация до и после хода.
+
+Правила:
+- Опиши только то, что действительно произошло в executedActions.
+- Не заявляй о покупке, атаке, перемещении или колонизации, которых нет в executedActions.
+- Нейтральную планету колонизируют, а не атакуют.
+- Можешь кратко оценить новое положение или назвать ближайший замысел, но не выдавай будущий план за свершившийся факт.
+- 1-3 коротких предложения на русском языке.
+- Пиши от лица спокойного красного командира.
+- Не упоминай JSON, actionIds, модель, reasoning или программный код.
+- Верни только JSON по схеме.`;
+}
+
+function createReadableAiState(actions) {
+    const ownerName = owner => owner === AI_OWNER ? 'ai' : owner === PLAYER_OWNER ? 'player' : 'neutral';
+
+    return {
+        turn: turnNumber,
+        board: {
+            width: mapSize,
+            height: mapSize,
+            movement: 'one orthogonal cell per turn',
+            distanceMetric: 'Manhattan'
+        },
+        economy: {
+            aiCredits: gold[AI_OWNER],
+            aiIncomeNextTurn: planets.filter(p => p.owner === AI_OWNER).length * 5,
+            playerCreditsKnown: gold[PLAYER_OWNER]
+        },
+        unitTypes: Object.fromEntries(Object.entries(UNIT_TYPES).map(([type, stats]) => [
+            type,
+            {
+                name: stats.name,
+                cost: stats.cost,
+                maxHp: stats.hp,
+                attack: stats.atk,
+                canAttack: stats.atk > 0,
+                canColonize: type === 'scout'
+            }
+        ])),
+        planets: planets.map(planet => ({
+            id: planet.id,
+            position: { x: planet.x, y: planet.y },
+            owner: ownerName(planet.owner),
+            hp: Math.ceil(planet.hp),
+            occupiedByUnitId: unitAt(planet.x, planet.y)?.id ?? null
+        })),
+        units: units.map(unit => ({
+            id: unit.id,
+            position: { x: unit.x, y: unit.y },
+            owner: ownerName(unit.owner),
+            type: unit.type,
+            hp: Math.ceil(unit.hp),
+            maxHp: UNIT_TYPES[unit.type].hp,
+            attack: UNIT_TYPES[unit.type].atk,
+            alreadyActed: Boolean(unit.moved)
+        })),
+        strategicSummary: buildStrategicSummary(),
+        allowedActions: actions.map(action => ({
+            id: action.id,
+            type: action.kind,
+            description: action.label
+        }))
+    };
+}
+
+function stripActionsFromState(state) {
+    const { allowedActions, ...withoutActions } = state;
+    return withoutActions;
+}
+
+function buildStrategicSummary() {
+    const aiPlanets = planets.filter(p => p.owner === AI_OWNER);
+    const playerPlanets = planets.filter(p => p.owner === PLAYER_OWNER);
+    const neutralPlanets = planets.filter(p => p.owner === NEUTRAL_OWNER);
+    const aiUnits = units.filter(u => u.owner === AI_OWNER);
+    const playerUnits = units.filter(u => u.owner === PLAYER_OWNER);
+
+    return {
+        aiPlanetCount: aiPlanets.length,
+        playerPlanetCount: playerPlanets.length,
+        neutralPlanetCount: neutralPlanets.length,
+        aiUnitCount: aiUnits.length,
+        playerUnitCount: playerUnits.length,
+        aiHasScout: aiUnits.some(u => u.type === 'scout'),
+        nearestPlayerThreatToAiPlanet: findNearestThreatDistance(aiPlanets, playerUnits),
+        nearestNeutralPlanetToAiScout: findNearestScoutTargetDistance(aiUnits, neutralPlanets)
+    };
+}
+
+function findNearestThreatDistance(aiPlanets, playerUnits) {
+    let best = null;
+    for (const planet of aiPlanets) {
+        for (const unit of playerUnits) {
+            const distance = manhattan(planet, unit);
+            if (best === null || distance < best) best = distance;
+        }
+    }
+    return best;
+}
+
+function findNearestScoutTargetDistance(aiUnits, neutralPlanets) {
+    let best = null;
+    for (const unit of aiUnits.filter(u => u.type === 'scout')) {
+        for (const planet of neutralPlanets) {
+            const distance = manhattan(unit, planet);
+            if (best === null || distance < best) best = distance;
+        }
+    }
+    return best;
+}
+
+function describeExecutedAction(action) {
+    switch (action.kind) {
+        case 'build': {
+            const planet = planets.find(p => p.id === action.planetId);
+            return {
+                type: 'build',
+                text: `Построен корабль ${action.unitType} на красной планете #${action.planetId}.`,
+                planetId: action.planetId,
+                unitType: action.unitType,
+                position: planet ? { x: planet.x, y: planet.y } : null
+            };
+        }
+        case 'move':
+            return {
+                type: 'move',
+                text: `Красный корабль #${action.unitId} переместился в клетку (${action.x}, ${action.y}).`,
+                unitId: action.unitId,
+                destination: { x: action.x, y: action.y }
+            };
+        case 'attack-unit':
+            return {
+                type: 'attack-unit',
+                text: `Красный корабль #${action.unitId} атаковал синий корабль #${action.targetUnitId}.`,
+                unitId: action.unitId,
+                targetUnitId: action.targetUnitId
+            };
+        case 'attack-planet':
+            return {
+                type: 'attack-planet',
+                text: `Красный корабль #${action.unitId} атаковал синюю планету #${action.planetId}.`,
+                unitId: action.unitId,
+                planetId: action.planetId
+            };
+        case 'colonize':
+            return {
+                type: 'colonize',
+                text: `Красный разведчик #${action.unitId} колонизировал нейтральную планету #${action.planetId}.`,
+                unitId: action.unitId,
+                planetId: action.planetId
+            };
+        default:
+            return { type: action.kind, text: action.label };
+    }
+}
+
+function buildDeterministicTurnComment(executedActions) {
+    const counts = executedActions.reduce((acc, action) => {
+        acc[action.type] = (acc[action.type] || 0) + 1;
+        return acc;
+    }, {});
+
+    const parts = [];
+    if (counts.build) parts.push(`построено кораблей: ${counts.build}`);
+    if (counts['attack-unit']) parts.push(`атаковано кораблей: ${counts['attack-unit']}`);
+    if (counts['attack-planet']) parts.push(`атаковано планет: ${counts['attack-planet']}`);
+    if (counts.colonize) parts.push(`колонизировано планет: ${counts.colonize}`);
+    if (counts.move) parts.push(`выполнено перемещений: ${counts.move}`);
+
+    return parts.length
+        ? `Приказы выполнены: ${parts.join(', ')}.`
+        : 'Ход завершён без результативных действий.';
+}
+
+function generateLegalAiActions() {
+    const actions = [];
+    let id = 1;
+
+    for (const planet of planets.filter(p => p.owner === AI_OWNER)) {
+        if (unitAt(planet.x, planet.y)) continue;
+        for (const [type, stats] of Object.entries(UNIT_TYPES)) {
+            if (gold[AI_OWNER] >= stats.cost) {
+                actions.push({
+                    id: id++,
+                    kind: 'build',
+                    planetId: planet.id,
+                    unitType: type,
+                    cost: stats.cost,
+                    label: `BUILD ${type} on planet#${planet.id} at (${planet.x},${planet.y}), cost=${stats.cost}`
+                });
+            }
+        }
+    }
+
+    for (const unit of units.filter(u => u.owner === AI_OWNER && !u.moved)) {
+        const stats = UNIT_TYPES[unit.type];
+        for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+            const x = unit.x + dx;
+            const y = unit.y + dy;
+            if (!insideMap(x, y)) continue;
+
+            const occupant = unitAt(x, y);
+            const planet = planetAt(x, y);
+
+            if (occupant) {
+                if (occupant.owner === PLAYER_OWNER && stats.atk > 0) {
+                    actions.push({
+                        id: id++,
+                        kind: 'attack-unit',
+                        unitId: unit.id,
+                        targetUnitId: occupant.id,
+                        label: `UNIT#${unit.id} ${unit.type} ATTACK enemy unit#${occupant.id} ${occupant.type} at (${x},${y}), enemyHP=${Math.ceil(occupant.hp)}`
+                    });
+                }
+                continue;
+            }
+
+            if (planet?.owner === NEUTRAL_OWNER && unit.type === 'scout') {
+                actions.push({
+                    id: id++,
+                    kind: 'colonize',
+                    unitId: unit.id,
+                    planetId: planet.id,
+                    label: `UNIT#${unit.id} scout COLONIZE neutral planet#${planet.id} at (${x},${y})`
+                });
+                continue;
+            }
+
+            if (planet?.owner === PLAYER_OWNER && stats.atk > 0) {
+                actions.push({
+                    id: id++,
+                    kind: 'attack-planet',
+                    unitId: unit.id,
+                    planetId: planet.id,
+                    label: `UNIT#${unit.id} ${unit.type} BOMBARD player planet#${planet.id} at (${x},${y}), planetHP=${Math.ceil(planet.hp)}`
+                });
+                continue;
+            }
+
+            actions.push({
+                id: id++,
+                kind: 'move',
+                unitId: unit.id,
+                x,
+                y,
+                label: `UNIT#${unit.id} ${unit.type} MOVE (${unit.x},${unit.y})->(${x},${y})${planet?.owner === AI_OWNER ? ' onto friendly planet' : ''}`
+            });
+        }
+    }
+
+    return actions;
+}
+
+function executeValidatedAiAction(action) {
+    switch (action.kind) {
+        case 'build': return executeAiBuild(action);
+        case 'move': return executeAiMove(action);
+        case 'attack-unit': return executeAiShipAttack(action);
+        case 'attack-planet': return executeAiPlanetAttack(action);
+        case 'colonize': return executeAiColonize(action);
+        default: return false;
+    }
+}
+
+function executeAiBuild(action) {
+    const planet = planets.find(p => p.id === action.planetId);
+    const stats = UNIT_TYPES[action.unitType];
+    if (!planet || planet.owner !== AI_OWNER || !stats) return false;
+    if (unitAt(planet.x, planet.y) || gold[AI_OWNER] < stats.cost) return false;
+
+    units.push(makeUnit(planet.x, planet.y, AI_OWNER, action.unitType, true));
+    gold[AI_OWNER] -= stats.cost;
+    return true;
+}
+
+function executeAiMove(action) {
+    const unit = units.find(u => u.id === action.unitId);
+    if (!unit || unit.owner !== AI_OWNER || unit.moved) return false;
+    if (!insideMap(action.x, action.y) || manhattan(unit, action) !== 1) return false;
+    if (unitAt(action.x, action.y)) return false;
+
+    const planet = planetAt(action.x, action.y);
+    if (planet?.owner === PLAYER_OWNER) return false;
+    if (planet?.owner === NEUTRAL_OWNER && unit.type === 'scout') return false;
+
+    unit.x = action.x;
+    unit.y = action.y;
+    unit.moved = true;
+    return true;
+}
+
+function executeAiShipAttack(action) {
+    const attacker = units.find(u => u.id === action.unitId);
+    const defender = units.find(u => u.id === action.targetUnitId);
+    if (!attacker || !defender || attacker.owner !== AI_OWNER || defender.owner !== PLAYER_OWNER) return false;
+    if (attacker.moved || manhattan(attacker, defender) !== 1 || UNIT_TYPES[attacker.type].atk <= 0) return false;
+
+    resolveShipAttack(attacker, defender);
+    attacker.moved = true;
+    cleanUpAndCheckVictory();
+    return true;
+}
+
+function executeAiPlanetAttack(action) {
+    const attacker = units.find(u => u.id === action.unitId);
+    const planet = planets.find(p => p.id === action.planetId);
+    if (!attacker || !planet || attacker.owner !== AI_OWNER || planet.owner !== PLAYER_OWNER) return false;
+    if (attacker.moved || manhattan(attacker, planet) !== 1 || UNIT_TYPES[attacker.type].atk <= 0) return false;
+
+    planet.hp -= UNIT_TYPES[attacker.type].atk;
+    attacker.moved = true;
+    checkPlanetStatus(planet);
+    cleanUpAndCheckVictory();
+    return true;
+}
+
+function executeAiColonize(action) {
+    const scout = units.find(u => u.id === action.unitId);
+    const planet = planets.find(p => p.id === action.planetId);
+    if (!scout || !planet || scout.owner !== AI_OWNER || scout.type !== 'scout' || scout.moved) return false;
+    if (planet.owner !== NEUTRAL_OWNER || manhattan(scout, planet) !== 1 || unitAt(planet.x, planet.y)) return false;
+
+    planet.owner = AI_OWNER;
+    planet.hp = 50;
+    scout.hp = 0;
+    cleanUpAndCheckVictory();
+    return true;
+}
+
+async function runClassicAiTurn() {
+    const aiPlanets = planets.filter(p => p.owner === AI_OWNER);
+    const neutralPlanets = planets.filter(p => p.owner === NEUTRAL_OWNER);
+
+    for (const planet of aiPlanets) {
+        if (unitAt(planet.x, planet.y)) continue;
+
+        const hasScout = units.some(u => u.owner === AI_OWNER && u.type === 'scout');
+        let chosenType = null;
+
+        if (neutralPlanets.length > 0 && !hasScout && gold[AI_OWNER] >= UNIT_TYPES.scout.cost) {
+            chosenType = 'scout';
+        } else {
+            chosenType = ['dreadnought', 'frigate', 'corvette', 'fighter']
+                .find(type => gold[AI_OWNER] >= UNIT_TYPES[type].cost) || null;
+        }
+
+        if (chosenType) {
+            units.push(makeUnit(planet.x, planet.y, AI_OWNER, chosenType, true));
+            gold[AI_OWNER] -= UNIT_TYPES[chosenType].cost;
+            draw();
+            await delay(150);
+        }
+    }
+
+    const aiUnits = units.filter(u => u.owner === AI_OWNER && !u.moved);
+    for (const unit of aiUnits) {
+        const target = chooseClassicTarget(unit);
+        if (!target) continue;
+
+        const distance = manhattan(unit, target);
+        if (distance === 1) {
+            classicAttackOrColonize(unit, target);
+        } else {
+            classicMoveToward(unit, target);
+        }
+
+        unit.moved = true;
+        cleanUpAndCheckVictory();
+        draw();
+        await delay(180);
+    }
+}
+
+function chooseClassicTarget(unit) {
+    const candidates = unit.type === 'scout'
+        ? planets.filter(p => p.owner === NEUTRAL_OWNER)
+        : [];
+
+    const targets = candidates.length > 0
+        ? candidates
+        : [...units.filter(u => u.owner === PLAYER_OWNER), ...planets.filter(p => p.owner === PLAYER_OWNER)];
+
+    return targets.reduce((best, target) => {
+        const d = manhattan(unit, target);
+        return !best || d < best.distance ? { target, distance: d } : best;
+    }, null)?.target || null;
+}
+
+function classicAttackOrColonize(unit, target) {
+    const stats = UNIT_TYPES[unit.type];
+
+    if ('type' in target) {
+        if (target.owner === PLAYER_OWNER && stats.atk > 0) resolveShipAttack(unit, target);
+        return;
+    }
+
+    if (target.owner === NEUTRAL_OWNER && unit.type === 'scout' && !unitAt(target.x, target.y)) {
+        target.owner = AI_OWNER;
+        target.hp = 50;
+        unit.hp = 0;
+    } else if (target.owner === PLAYER_OWNER && stats.atk > 0) {
+        target.hp -= stats.atk;
+        checkPlanetStatus(target);
+    }
+}
+
+function classicMoveToward(unit, target) {
+    const possible = [];
+    const dx = Math.sign(target.x - unit.x);
+    const dy = Math.sign(target.y - unit.y);
+
+    if (Math.abs(target.x - unit.x) >= Math.abs(target.y - unit.y)) {
+        if (dx) possible.push({ x: unit.x + dx, y: unit.y });
+        if (dy) possible.push({ x: unit.x, y: unit.y + dy });
+    } else {
+        if (dy) possible.push({ x: unit.x, y: unit.y + dy });
+        if (dx) possible.push({ x: unit.x + dx, y: unit.y });
+    }
+
+    for (const cell of possible) {
+        if (!insideMap(cell.x, cell.y) || unitAt(cell.x, cell.y)) continue;
+        const planet = planetAt(cell.x, cell.y);
+        if (planet?.owner === PLAYER_OWNER) continue;
+        if (planet?.owner === NEUTRAL_OWNER && unit.type === 'scout') continue;
+        unit.x = cell.x;
+        unit.y = cell.y;
+        return;
+    }
+}
+
+async function testOllamaConnection() {
+    setOllamaStatus('busy', 'Проверяю Ollama...');
+    testOllamaBtn.disabled = true;
+
+    try {
+        const response = await fetch(OLLAMA_TAGS_URL, { signal: AbortSignal.timeout(8000) });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const models = Array.isArray(data.models) ? data.models.map(item => item.name || item.model) : [];
+        const requested = modelInput.value.trim();
+
+        if (requested && models.length > 0 && !models.includes(requested)) {
+            setOllamaStatus('err', `Ollama работает, но модель «${requested}» не найдена`);
+        } else {
+            setOllamaStatus('ok', requested ? `Готово: ${requested}` : 'Ollama доступна');
+        }
+    } catch (error) {
+        setOllamaStatus('err', `Нет соединения: ${humanizeError(error)}`);
+    } finally {
+        testOllamaBtn.disabled = false;
+    }
+}
+
+function setOllamaStatus(kind, text) {
+    ollamaDot.className = `dot ${kind}`;
+    ollamaStatus.textContent = text;
+}
+
+function addChatMessage(text) {
+    const item = document.createElement('div');
+    item.className = 'chat-item';
+
+    const title = document.createElement('div');
+    title.className = 'chat-turn';
+    title.textContent = `Ход ${turnNumber}`;
+
+    const body = document.createElement('div');
+    body.textContent = text;
+
+    item.append(title, body);
+    chat.appendChild(item);
+
+    while (chat.children.length > 10) chat.removeChild(chat.firstElementChild);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function parseModelJson(content) {
+    const trimmed = content.trim();
+    try {
+        return JSON.parse(trimmed);
+    } catch (_) {
+        const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+        if (fenced) return JSON.parse(fenced.trim());
+
+        const first = trimmed.indexOf('{');
+        const last = trimmed.lastIndexOf('}');
+        if (first !== -1 && last > first) return JSON.parse(trimmed.slice(first, last + 1));
+        throw new Error('ответ модели не является JSON');
+    }
+}
+
+function validateDecisionShape(value) {
+    if (!value || typeof value !== 'object') throw new Error('неверная структура ответа');
+    if (typeof value.comment !== 'string') throw new Error('нет поля comment');
+    if (!Array.isArray(value.actionIds) || !value.actionIds.every(Number.isInteger)) {
+        throw new Error('actionIds должен быть массивом целых чисел');
+    }
+}
+
+function sanitizeComment(text) {
+    return String(text)
+        .replace(/<[^>]*>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 420);
+}
+
+function checkPlanetStatus(planet) {
+    if (planet.hp <= 0) {
+        planet.owner = NEUTRAL_OWNER;
+        planet.hp = 50;
+    }
+}
+
+function cleanUpAndCheckVictory() {
+    units = units.filter(unit => unit.hp > 0);
+    sanitizeHitPoints();
+
+    if (gameFinished) return;
+
+    const playerPlanets = planets.filter(p => p.owner === PLAYER_OWNER).length;
+    const aiPlanets = planets.filter(p => p.owner === AI_OWNER).length;
+
+    if (aiPlanets === 0) finishGame('Империя противника пала!');
+    else if (playerPlanets === 0) finishGame('Твоя империя уничтожена...');
+}
+
+function finishGame(message) {
+    gameFinished = true;
+    currentPlayer = -99;
+    endTurnBtn.disabled = true;
+    msgDisp.textContent = message;
+    addChatMessage(message);
+    setTimeout(() => {
+        if (confirm(`${message}\n\nНачать новую партию?`)) location.reload();
+    }, 100);
+}
+
+function sanitizeHitPoints() {
+    for (const unit of units) {
+        const stats = UNIT_TYPES[unit.type];
+        if (stats) unit.hp = clamp(unit.hp, 0, stats.hp);
+    }
+}
+
+function unitAt(x, y) {
+    return units.find(u => u.x === x && u.y === y) || null;
+}
+
+function planetAt(x, y) {
+    return planets.find(p => p.x === x && p.y === y) || null;
+}
+
+function ownerCode(owner) {
+    return owner === AI_OWNER ? 'A' : owner === PLAYER_OWNER ? 'P' : 'N';
+}
+
+function manhattan(a, b) {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function insideMap(x, y) {
+    return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < mapSize && y < mapSize;
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function humanizeError(error) {
+    const message = error?.message || String(error);
+    if (/Failed to fetch/i.test(message)) {
+        return 'браузер не смог обратиться к localhost:11434; проверь запуск Ollama и CORS';
+    }
+    return message.slice(0, 220);
+}
+
+initMap();
+setTimeout(testOllamaConnection, 350);
+</script>
+</body>
+</html>

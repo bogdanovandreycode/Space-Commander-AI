@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Micro Strategy (Fixed)</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #0b0f19; color: #e2e8f0; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; align-items: center; touch-action: none; }
+        #ui { width: 100%; max-width: 500px; display: flex; justify-content: space-between; padding: 10px; box-sizing: border-box; background: #1a202c; border-bottom: 1px solid #2d3748; }
+        canvas { background-color: #00040a; margin-top: 10px; box-shadow: 0 0 15px rgba(66, 153, 225, 0.2); }
+        button { padding: 8px 12px; background-color: #2b6cb0; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        button:active { background-color: #2c5282; }
+        #message { margin-top: 10px; font-weight: bold; min-height: 20px; color: #f6e05e; text-align: center;}
+        
+        #buildMenu { display: none; position: absolute; background: rgba(26, 32, 44, 0.95); border: 1px solid #4a5568; padding: 10px; border-radius: 5px; flex-direction: column; gap: 5px; z-index: 10; }
+        .build-btn { background: #4a5568; text-align: left; font-family: inherit; font-size: 14px; display: flex; justify-content: space-between; gap: 10px; }
+        .build-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div><div>Кредиты: <span id="goldDisp">15</span> <span style="font-size: 12px; color:#a0aec0;">(+5/планета)</span></div></div>
+    <button id="endTurnBtn" onclick="endPlayerTurn()">Конец хода</button>
+</div>
+
+<div id="message">Твой ход, Командор!</div>
+<canvas id="gameCanvas"></canvas>
+
+<div id="buildMenu"></div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const goldDisp = document.getElementById('goldDisp');
+    const msgDisp = document.getElementById('message');
+    const endTurnBtn = document.getElementById('endTurnBtn');
+    const buildMenu = document.getElementById('buildMenu');
+
+    const mapSize = 8;
+    let tileSize = Math.min(window.innerWidth, 500) / mapSize;
+    canvas.width = tileSize * mapSize;
+    canvas.height = tileSize * mapSize;
+
+    const UNIT_TYPES = {
+        'scout': { name: 'Разведчик', cost: 10, hp: 5, atk: 0, sym: 'S' },
+        'fighter': { name: 'Истреб.', cost: 15, hp: 10, atk: 4, sym: 'F' },
+        'corvette': { name: 'Корвет', cost: 25, hp: 20, atk: 8, sym: 'C' },
+        'frigate': { name: 'Фрегат', cost: 40, hp: 35, atk: 15, sym: 'R' },
+        'dreadnought': { name: 'Дредноут', cost: 70, hp: 60, atk: 25, sym: 'D' }
+    };
+
+    let currentPlayer = 0; 
+    let gold = [15, 15];
+    let planets = [];
+    let units = [];
+    let selectedTile = null;
+    let buildingPlanet = null;
+
+    function initMap() {
+        planets.push({ x: 0, y: 0, owner: 0, hp: 50 }); 
+        planets.push({ x: mapSize - 1, y: mapSize - 1, owner: 1, hp: 50 }); 
+        
+        let attempts = 0;
+        while(planets.length < 6 && attempts < 100) {
+            let px = Math.floor(Math.random() * mapSize);
+            let py = Math.floor(Math.random() * mapSize);
+            let tooClose = planets.some(p => Math.abs(p.x - px) <= 1 && Math.abs(p.y - py) <= 1);
+            if(!tooClose) planets.push({ x: px, y: py, owner: -1, hp: 50 });
+            attempts++;
+        }
+
+        units.push({ x: 1, y: 0, owner: 0, type: 'scout', hp: 5, moved: false });
+        units.push({ x: mapSize - 2, y: mapSize - 1, owner: 1, type: 'scout', hp: 5, moved: false });
+        
+        generateBuildMenu();
+        draw();
+    }
+
+    function generateBuildMenu() {
+        let html = '<div style="font-size: 12px; margin-bottom: 5px; color: #cbd5e0;">Верфь:</div>';
+        for (let key in UNIT_TYPES) {
+            let u = UNIT_TYPES[key];
+            html += `<button class="build-btn" onclick="buildUnit('${key}')" id="btn_${key}">
+                        <span>${u.name} (A:${u.atk} H:${u.hp})</span> <span>${u.cost} кр.</span>
+                     </button>`;
+        }
+        html += `<button onclick="closeBuildMenu()" style="background: #e53e3e; margin-top: 5px;">Отмена</button>`;
+        buildMenu.innerHTML = html;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#2d3748';
+        for (let x = 0; x < mapSize; x++) {
+            for (let y = 0; y < mapSize; y++) ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+        }
+        ctx.fillStyle = '#fff';
+        for(let i=0; i<20; i++) { ctx.fillRect((Math.sin(i*12)*mapSize*tileSize/2)+(mapSize*tileSize/2), (Math.cos(i*7)*mapSize*tileSize/2)+(mapSize*tileSize/2), 1, 1); }
+        if (selectedTile) { ctx.fillStyle = 'rgba(66, 153, 225, 0.3)'; ctx.fillRect(selectedTile.x * tileSize, selectedTile.y * tileSize, tileSize, tileSize); }
+        planets.forEach(p => {
+            ctx.beginPath(); ctx.arc(p.x * tileSize + tileSize / 2, p.y * tileSize + tileSize / 2, tileSize * 0.4, 0, Math.PI * 2); ctx.fillStyle = p.owner === 0 ? '#3182ce' : (p.owner === 1 ? '#e53e3e' : '#a0aec0'); ctx.fill(); ctx.fillStyle = 'white'; ctx.font = '10px Courier New'; ctx.textAlign = 'center'; ctx.fillText(p.hp + 'HP', p.x * tileSize + tileSize / 2, p.y * tileSize + tileSize / 2 + 5);
+        });
+        units.forEach(u => {
+            let stats = UNIT_TYPES[u.type]; ctx.beginPath(); let cx = u.x * tileSize + tileSize / 2; let cy = u.y * tileSize + tileSize / 2; ctx.moveTo(cx, cy - tileSize * 0.25); ctx.lineTo(cx + tileSize * 0.25, cy + tileSize * 0.25); ctx.lineTo(cx - tileSize * 0.25, cy + tileSize * 0.25); ctx.closePath(); ctx.fillStyle = u.owner === 0 ? (u.moved ? '#4a5568' : '#63b3ed') : (u.moved ? '#742a2a' : '#fc8181'); ctx.fill(); ctx.strokeStyle = '#1a202c'; ctx.stroke(); ctx.fillStyle = 'white'; ctx.font = 'bold 12px Courier New'; ctx.textAlign = 'center'; ctx.fillText(stats.sym, cx, cy + 5); ctx.fillStyle = 'red'; ctx.fillRect(cx - 10, cy + 12, 20, 3); ctx.fillStyle = '#48bb78';
+            // Санитарная проверка перед отрисовкой
+            let currentHp = Math.min(u.hp, stats.hp);
+            ctx.fillRect(cx - 10, cy + 12, 20 * (currentHp / stats.hp), 3);
+        });
+        goldDisp.innerText = gold[0];
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+        if (currentPlayer !== 0) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) / tileSize);
+        const y = Math.floor((e.clientY - rect.top) / tileSize);
+        let clickedUnit = units.find(u => u.x === x && u.y === y);
+        let clickedPlanet = planets.find(p => p.x === x && p.y === y);
+        closeBuildMenu();
+        if (selectedTile) {
+            let su = units.find(u => u.x === selectedTile.x && u.y === selectedTile.y && u.owner === 0);
+            if (su && !su.moved) {
+                let dist = Math.abs(x - su.x) + Math.abs(y - su.y);
+                let uStats = UNIT_TYPES[su.type];
+                if (dist === 1) { 
+                    if (clickedUnit && clickedUnit.owner !== 0) {
+                        if (uStats.atk > 0) { clickedUnit.hp -= uStats.atk; su.hp -= UNIT_TYPES[clickedUnit.type].atk / 2; su.moved = true; msgDisp.innerText = "Атака корабля!"; } else { msgDisp.innerText = "Разведчик не может атаковать!"; }
+                    } else if (clickedPlanet && clickedPlanet.owner !== 0) {
+                        if (clickedPlanet.owner === -1 && su.type === 'scout') { clickedPlanet.owner = 0; clickedPlanet.hp = 50; su.hp = 0; msgDisp.innerText = "Планета колонизирована!"; } else if (clickedPlanet.owner === 1 && uStats.atk > 0) { clickedPlanet.hp -= uStats.atk; su.moved = true; msgDisp.innerText = "Орбитальная бомбардировка!"; checkPlanetStatus(clickedPlanet); }
+                    } else if (!clickedUnit) { su.x = x; su.y = y; su.moved = true; }
+                }
+            }
+            selectedTile = null; 
+        } else { if (clickedUnit && clickedUnit.owner === 0) { selectedTile = { x, y }; msgDisp.innerText = "Корабль готов к приказу."; } else if (clickedPlanet && clickedPlanet.owner === 0 && !clickedUnit) { openBuildMenu(clickedPlanet, e.clientX, e.clientY); } }
+        cleanUpDead(); draw();
+    });
+
+    function checkPlanetStatus(p) { if (p.hp <= 0) { p.owner = -1; p.hp = 50; msgDisp.innerText = "Планета потеряла защиту!"; } }
+
+    function openBuildMenu(planet, mx, my) { buildingPlanet = planet; buildMenu.style.display = 'flex'; buildMenu.style.left = Math.min(mx, window.innerWidth - 200) + 'px'; buildMenu.style.top = my + 'px'; for (let key in UNIT_TYPES) { document.getElementById('btn_' + key).disabled = gold[0] < UNIT_TYPES[key].cost; } }
+    function closeBuildMenu() { buildMenu.style.display = 'none'; buildingPlanet = null; }
+
+    function buildUnit(type) { let cost = UNIT_TYPES[type].cost; if (gold[0] >= cost && buildingPlanet) { units.push({ x: buildingPlanet.x, y: buildingPlanet.y, owner: 0, type: type, hp: UNIT_TYPES[type].hp, moved: true }); gold[0] -= cost; msgDisp.innerText = "Корабль построен!"; } closeBuildMenu(); draw(); }
+
+    function cleanUpDead() { units = units.filter(u => u.hp > 0); let p0 = planets.filter(p => p.owner === 0).length; let p1 = planets.filter(p => p.owner === 1).length; if (p1 === 0) { alert("Империя врага пала!"); location.reload(); } if (p0 === 0) { alert("Твоя империя уничтожена..."); location.reload(); } }
+
+    // --- ЛОГИКА ХОДОВ И ИИ ---
+    function endPlayerTurn() {
+        if (currentPlayer !== 0) return;
+        currentPlayer = 1; selectedTile = null; closeBuildMenu(); msgDisp.innerText = "Ход ИИ..."; endTurnBtn.disabled = true;
+        
+        gold[0] += planets.filter(p => p.owner === 0).length * 5;
+        units.filter(u => u.owner === 0).forEach(u => {
+            u.moved = false;
+            let onPlanet = planets.find(p => p.x === u.x && p.y === u.y && p.owner === 0);
+            if (onPlanet) u.hp = Math.min(u.hp + 1, UNIT_TYPES[u.type].hp);
+        });
+
+        // Санитарная проверка в конце хода игрока
+        units.forEach(u => { let stats = UNIT_TYPES[u.type]; if (stats) u.hp = Math.min(u.hp, stats.hp); });
+
+        setTimeout(aiTurn, 800);
+    }
+
+    function aiTurn() {
+        gold[1] += planets.filter(p => p.owner === 1).length * 5;
+        units.filter(u => u.owner === 1).forEach(u => {
+            u.moved = false;
+            let onPlanet = planets.find(p => p.x === u.x && p.y === u.y && p.owner === 1);
+            if (onPlanet) u.hp = Math.min(u.hp + 1, UNIT_TYPES[u.type].hp);
+        });
+
+        let aiPlanets = planets.filter(p => p.owner === 1);
+        let neutralPlanets = planets.filter(p => p.owner === -1);
+        aiPlanets.forEach(p => {
+            if (!units.some(u => u.x === p.x && u.y === p.y)) {
+                let hasScout = units.some(u => u.owner === 1 && u.type === 'scout');
+                if (neutralPlanets.length > 0 && !hasScout && gold[1] >= UNIT_TYPES.scout.cost) { units.push({ x: p.x, y: p.y, owner: 1, type: 'scout', hp: UNIT_TYPES.scout.hp, moved: true }); gold[1] -= UNIT_TYPES.scout.cost; } else { let bestType = null; ['dreadnought', 'frigate', 'corvette', 'fighter'].forEach(type => { if (!bestType && gold[1] >= UNIT_TYPES[type].cost) bestType = type; }); if (bestType) { units.push({ x: p.x, y: p.y, owner: 1, type: bestType, hp: UNIT_TYPES[bestType].hp, moved: true }); gold[1] -= UNIT_TYPES[bestType].cost; } }
+            }
+        });
+
+        let aiUnits = units.filter(u => u.owner === 1 && !u.moved);
+        aiUnits.forEach(au => {
+            let uStats = UNIT_TYPES[au.type];
+            let target = null;
+            let minDistance = 999;
+            if (au.type === 'scout') { neutralPlanets.forEach(np => { let d = Math.abs(np.x - au.x) + Math.abs(np.y - au.y); if (d < minDistance) { minDistance = d; target = np; } }); }
+            if (!target) { let enemies = [...units.filter(u => u.owner === 0), ...planets.filter(p => p.owner === 0)]; enemies.forEach(e => { let d = Math.abs(e.x - au.x) + Math.abs(e.y - au.y); if (d < minDistance) { minDistance = d; target = e; } }); }
+
+            if (target) {
+                if (minDistance === 1) {
+                    if (target.owner === -1 && au.type === 'scout') { target.owner = 1; target.hp = 50; au.hp = 0; } 
+                    else if (target.owner === 0 && uStats.atk > 0) {
+                        target.hp -= uStats.atk; // Атака ИИ
+
+                        // --- ИСПРАВЛЕНО: Правильная проверка и нанесение ответного урона ---
+                        let targetStats = UNIT_TYPES[target.type]; // undefined для планет
+                        if (targetStats && targetStats.atk > 0 && target.hp > 0) {
+                             au.hp -= targetStats.atk / 2; // Корабль игрока отвечает
+                        } else if (target.type === undefined) {
+                             // Если type undefined, это планета. Проверяем её статус.
+                             checkPlanetStatus(target); 
+                        }
+                    }
+                } else {
+                    let dx = target.x > au.x ? 1 : (target.x < au.x ? -1 : 0);
+                    let dy = target.y > au.y ? 1 : (target.y < au.y ? -1 : 0);
+                    let nextX = au.x, nextY = au.y;
+                    if (Math.abs(target.x - au.x) > Math.abs(target.y - au.y)) nextX += dx; else nextY += dy;
+                    if (!units.some(u => u.x === nextX && u.y === nextY)) { au.x = nextX; au.y = nextY; }
+                }
+            }
+        });
+
+        cleanUpDead();
+        checkPlanetStatus(planets[0]); // Дополнительная проверка планеты игрока
+
+        // --- ДОБАВЛЕНО: Санитарная проверка HP всех юнитов ---
+        units.forEach(u => {
+            let stats = UNIT_TYPES[u.type];
+            if (stats) {
+                u.hp = Math.min(u.hp, stats.hp); // Ограничиваем HP максимальным значением
+            }
+        });
+
+        currentPlayer = 0; msgDisp.innerText = "Твой ход, Командор!"; endTurnBtn.disabled = false; draw();
+    }
+
+    initMap();
+</script>
+</body>
+</html>

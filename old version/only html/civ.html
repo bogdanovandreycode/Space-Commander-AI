@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Micro Civ</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2c3e50;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            touch-action: none; /* Отключаем скролл на мобильных */
+        }
+        #ui {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            box-sizing: border-box;
+            background: #34495e;
+            border-bottom: 2px solid #2c3e50;
+        }
+        canvas {
+            background-color: #a4db82; /* Цвет травы */
+            margin-top: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:active { background-color: #2980b9; }
+        #message { margin-top: 10px; font-weight: bold; min-height: 20px; color: #f1c40f; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div>
+        <div>Золото: <span id="goldDisp">10</span></div>
+        <div style="font-size: 12px; color: #bdc3c7;">Юнит стоит 10 з. (Клик на свой город)</div>
+    </div>
+    <button id="endTurnBtn" onclick="endPlayerTurn()">Конец хода</button>
+</div>
+
+<div id="message">Твой ход! Выбери юнита или город.</div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const goldDisp = document.getElementById('goldDisp');
+    const msgDisp = document.getElementById('message');
+    const endTurnBtn = document.getElementById('endTurnBtn');
+
+    // Настройки карты под мобильные устройства
+    const mapSize = 6; 
+    let tileSize = Math.min(window.innerWidth, 500) / mapSize;
+    canvas.width = tileSize * mapSize;
+    canvas.height = tileSize * mapSize;
+
+    // Состояние игры
+    let currentPlayer = 0; // 0 = Игрок (Синие), 1 = ИИ (Красные)
+    let gold = [10, 10]; // Золото [Игрок, ИИ]
+    const unitCost = 10;
+    const cityIncome = 5;
+
+    let cities = [
+        { x: 0, y: 0, owner: 0, hp: 20 },
+        { x: mapSize - 1, y: mapSize - 1, owner: 1, hp: 20 }
+    ];
+
+    let units = [
+        { x: 1, y: 0, owner: 0, hp: 10, moved: false },
+        { x: mapSize - 2, y: mapSize - 1, owner: 1, hp: 10, moved: false }
+    ];
+
+    let selectedTile = null;
+
+    // --- ОТРИСОВКА ---
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Рисуем сетку
+        ctx.strokeStyle = '#7cb342';
+        for (let x = 0; x < mapSize; x++) {
+            for (let y = 0; y < mapSize; y++) {
+                ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+        }
+
+        // Выделенная клетка
+        if (selectedTile) {
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+            ctx.fillRect(selectedTile.x * tileSize, selectedTile.y * tileSize, tileSize, tileSize);
+        }
+
+        // Рисуем города
+        cities.forEach(city => {
+            ctx.fillStyle = city.owner === 0 ? '#2980b9' : '#c0392b';
+            ctx.fillRect(city.x * tileSize + 5, city.y * tileSize + 5, tileSize - 10, tileSize - 10);
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText('Город', city.x * tileSize + 10, city.y * tileSize + 20);
+            ctx.fillText(city.hp + ' HP', city.x * tileSize + 10, city.y * tileSize + 40);
+        });
+
+        // Рисуем юнитов
+        units.forEach(unit => {
+            ctx.beginPath();
+            ctx.arc(unit.x * tileSize + tileSize / 2, unit.y * tileSize + tileSize / 2, tileSize / 3, 0, Math.PI * 2);
+            ctx.fillStyle = unit.owner === 0 ? (unit.moved ? '#7fb3d5' : '#3498db') : '#e74c3c';
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.stroke();
+            // HP юнита
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(unit.hp, unit.x * tileSize + tileSize / 2, unit.y * tileSize + tileSize / 2 + 4);
+            ctx.textAlign = 'left';
+        });
+
+        goldDisp.innerText = gold[0];
+    }
+
+    // --- УПРАВЛЕНИЕ ИГРОКА ---
+    canvas.addEventListener('pointerdown', (e) => {
+        if (currentPlayer !== 0) return; // Ждем ИИ
+
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) / tileSize);
+        const y = Math.floor((e.clientY - rect.top) / tileSize);
+
+        let clickedUnit = units.find(u => u.x === x && u.y === y);
+        let clickedCity = cities.find(c => c.x === x && c.y === y);
+
+        if (selectedTile) {
+            let su = units.find(u => u.x === selectedTile.x && u.y === selectedTile.y && u.owner === 0);
+            
+            // Если выбран юнит и мы кликаем на соседнюю клетку
+            if (su && !su.moved) {
+                let dx = Math.abs(x - su.x);
+                let dy = Math.abs(y - su.y);
+                
+                if (dx + dy === 1) { // Соседняя клетка по вертикали/горизонтали
+                    if (clickedUnit && clickedUnit.owner !== 0) {
+                        // Атака юнита
+                        clickedUnit.hp -= 5;
+                        su.hp -= 2; // Ответный урон
+                        su.moved = true;
+                        msgDisp.innerText = "Атака!";
+                    } else if (clickedCity && clickedCity.owner !== 0) {
+                        // Атака города
+                        clickedCity.hp -= 5;
+                        su.moved = true;
+                        msgDisp.innerText = "Атака города!";
+                    } else if (!clickedUnit && !clickedCity) {
+                        // Движение
+                        su.x = x;
+                        su.y = y;
+                        su.moved = true;
+                    }
+                }
+            }
+            
+            // Покупка юнита
+            let sc = cities.find(c => c.x === selectedTile.x && c.y === selectedTile.y && c.owner === 0);
+            if (sc && x === sc.x && y === sc.y && gold[0] >= unitCost && !clickedUnit) {
+                units.push({ x: sc.x, y: sc.y, owner: 0, hp: 10, moved: true });
+                gold[0] -= unitCost;
+                msgDisp.innerText = "Юнит нанят!";
+            }
+            
+            selectedTile = null; // Сброс выделения
+        } else {
+            // Выделяем клетку
+            if ((clickedUnit && clickedUnit.owner === 0) || (clickedCity && clickedCity.owner === 0)) {
+                selectedTile = { x, y };
+                msgDisp.innerText = clickedUnit ? "Юнит выбран. Кликни рядом для хода." : "Город выбран. Кликни еще раз для покупки юнита.";
+            }
+        }
+        
+        checkWin();
+        cleanUpDead();
+        draw();
+    });
+
+    function cleanUpDead() {
+        units = units.filter(u => u.hp > 0);
+    }
+
+    function checkWin() {
+        if (cities[1].hp <= 0) { alert("Ты победил!"); location.reload(); }
+        if (cities[0].hp <= 0) { alert("ИИ уничтожил твой город!"); location.reload(); }
+    }
+
+    // --- ЛОГИКА ХОДОВ И ИИ ---
+    function endPlayerTurn() {
+        if (currentPlayer !== 0) return;
+        currentPlayer = 1;
+        selectedTile = null;
+        msgDisp.innerText = "Ход ИИ...";
+        endTurnBtn.disabled = true;
+        
+        // Сброс ходов игрока
+        units.filter(u => u.owner === 0).forEach(u => u.moved = false);
+        gold[0] += cityIncome;
+
+        setTimeout(aiTurn, 1000); // Небольшая пауза для эффекта "раздумий"
+    }
+
+    function aiTurn() {
+        gold[1] += cityIncome;
+
+        // 1. ИИ строит юнитов, если хватает денег и клетка города свободна
+        let aiCity = cities[1];
+        if (gold[1] >= unitCost) {
+            let unitOnCity = units.find(u => u.x === aiCity.x && u.y === aiCity.y);
+            if (!unitOnCity) {
+                units.push({ x: aiCity.x, y: aiCity.y, owner: 1, hp: 10, moved: true });
+                gold[1] -= unitCost;
+            }
+        }
+
+        // 2. ИИ двигает юнитов / атакует
+        let aiUnits = units.filter(u => u.owner === 1);
+        aiUnits.forEach(au => {
+            // Ищем ближайшую цель (юнит игрока или его город)
+            let targets = [...units.filter(u => u.owner === 0), cities[0]];
+            let bestTarget = null;
+            let minDistance = 999;
+
+            targets.forEach(t => {
+                let dist = Math.abs(t.x - au.x) + Math.abs(t.y - au.y);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    bestTarget = t;
+                }
+            });
+
+            if (bestTarget) {
+                if (minDistance === 1) {
+                    // Цель рядом - АТАКУЕМ
+                    bestTarget.hp -= 5;
+                    au.hp -= 2;
+                } else {
+                    // Двигаемся к цели (по X или по Y)
+                    let dx = bestTarget.x > au.x ? 1 : (bestTarget.x < au.x ? -1 : 0);
+                    let dy = bestTarget.y > au.y ? 1 : (bestTarget.y < au.y ? -1 : 0);
+                    
+                    let nextX = au.x;
+                    let nextY = au.y;
+
+                    // Приоритет движения туда, где расстояние больше
+                    if (Math.abs(bestTarget.x - au.x) > Math.abs(bestTarget.y - au.y)) {
+                        nextX += dx;
+                    } else {
+                        nextY += dy;
+                    }
+
+                    // Проверка: не занята ли клетка
+                    if (!units.some(u => u.x === nextX && u.y === nextY) && 
+                        !cities.some(c => c.x === nextX && c.y === nextY && c.owner === 1)) {
+                        au.x = nextX;
+                        au.y = nextY;
+                    }
+                }
+            }
+        });
+
+        cleanUpDead();
+        checkWin();
+
+        // Возвращаем ход игроку
+        currentPlayer = 0;
+        msgDisp.innerText = "Твой ход!";
+        endTurnBtn.disabled = false;
+        draw();
+    }
+
+    // Старт игры
+    draw();
+</script>
+
+</body>
+</html>
