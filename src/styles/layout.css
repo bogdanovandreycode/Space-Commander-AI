@@ -1,0 +1,196 @@
+#app {
+  min-height: 100vh;
+}
+
+.loading-screen,
+.menu-screen,
+.faction-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.loading-card {
+  width: min(360px, 92vw);
+  text-align: center;
+}
+
+.loading-logo {
+  width: 150px;
+  height: 200px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.loading-track {
+  height: 4px;
+  overflow: hidden;
+  margin: 24px 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.loading-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--cryos), var(--ignis));
+  transition: width 180ms ease;
+}
+
+.menu-screen {
+  position: relative;
+  overflow: hidden;
+  justify-items: start;
+  padding-left: max(7vw, 28px);
+}
+
+.menu-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(3, 6, 17, 0.98) 0%, rgba(3, 6, 17, 0.78) 45%, rgba(3, 6, 17, 0.2) 100%),
+    url("../assets/branding/logo.webp") center 30% / cover no-repeat;
+  filter: saturate(1.12);
+}
+
+.menu-panel {
+  position: relative;
+  width: min(570px, 90vw);
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(7, 13, 26, 0.96), rgba(11, 22, 38, 0.76));
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.menu-logo {
+  float: right;
+  width: 90px;
+  height: 120px;
+  margin-left: 22px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 12px;
+  opacity: 0.9;
+}
+
+.menu-panel h1,
+.screen-heading h1 {
+  margin: 4px 0 12px;
+  font-size: clamp(2.4rem, 7vw, 5.2rem);
+  line-height: 0.86;
+  letter-spacing: -0.055em;
+}
+
+.menu-copy {
+  max-width: 48ch;
+  color: #b7c9dc;
+  line-height: 1.68;
+}
+
+.menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.faction-screen {
+  align-content: center;
+  gap: 28px;
+}
+
+.screen-heading {
+  text-align: center;
+}
+
+.faction-grid {
+  width: min(920px, 100%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.game-screen {
+  width: min(1540px, 100%);
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.command-bar {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.command-bar nav {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.battle-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.7fr) minmax(480px, 760px) minmax(210px, 0.7fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+.board-column {
+  min-width: 0;
+}
+
+.board-frame {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: #02050d;
+  box-shadow: 0 0 60px rgba(61, 137, 201, 0.18);
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.fleet-panel {
+  min-height: 360px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.intel-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.intel-card {
+  min-height: 210px;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}

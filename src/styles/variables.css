@@ -1,0 +1,18 @@
+:root {
+  color-scheme: dark;
+  --bg: #030611;
+  --panel: rgba(10, 17, 31, 0.94);
+  --panel-2: rgba(17, 29, 49, 0.9);
+  --line: rgba(116, 154, 195, 0.22);
+  --line-strong: rgba(120, 183, 238, 0.48);
+  --text: #edf5ff;
+  --muted: #8da2bb;
+  --cryos: #63b3ed;
+  --cryos-strong: #2b6cb0;
+  --ignis: #ff766d;
+  --ignis-strong: #c53030;
+  --green: #49dcb1;
+  --gold: #f6d365;
+  --radius: 16px;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}

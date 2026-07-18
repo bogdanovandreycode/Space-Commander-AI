@@ -1,2 +1,8 @@
+/.agents
 /.osp
 /public
+/node_modules
+/.vite
+/coverage
+*.log
+.DS_Store
