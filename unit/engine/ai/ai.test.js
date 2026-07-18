@@ -76,21 +76,104 @@ describe('AI validation and fallback', () => {
     expect(fallback.choosePurchase('ignis')).toBeTruthy();
   });
 
-  it('falls back when headquarters returns invalid JSON/error', async () => {
+  it('retries a failed reasoning headquarters with the selected reserve model and think disabled', async () => {
     const engine = GameEngine.create(loadGameConfigs(), { humanFaction: 'cryos' });
     engine.endFactionTurn();
     const client = {
-      chat: vi.fn().mockRejectedValue(new Error('INVALID_MODEL_JSON')),
+      chat: vi.fn(async ({ role, payload }) => {
+        if (role === 'headquarters') throw new Error('OLLAMA_TIMEOUT');
+        if (role === 'headquarters-fallback') {
+          return {
+            data: {
+              doctrine: 'RAPID_RECOVERY',
+              commanderComment: 'Резервный штаб принял командование.',
+              strategicRationale: 'Командный канал восстановлен без reasoning.',
+              executionOrder: [2],
+              unitRecommendations: [],
+              procurementDirective: { maxSpend: 25, minimumReserve: 25 },
+            },
+          };
+        }
+        if (role === 'procurement') {
+          return { data: { purchaseActionIds: [], spendingPosture: 'SAVE' } };
+        }
+        const wait = payload.legalActions.find((action) => action.type === 'WAIT');
+        return {
+          data: {
+            actionId: wait.id,
+            recommendationStatus: 'WAITING',
+            intentCode: 'HOLD',
+            reasonCode: 'RESERVE_COMMAND',
+          },
+        };
+      }),
       updateSettings: vi.fn(),
     };
     const orchestrator = new MultiAgentTurnOrchestrator({
       engine,
       client,
-      settings: { ...DEFAULT_AI_SETTINGS, reportsEnabled: false },
+      settings: {
+        ...DEFAULT_AI_SETTINGS,
+        headquartersFallbackModel: 'fast-command:latest',
+        reportsEnabled: false,
+      },
     });
     const result = await orchestrator.runAiTurn();
-    expect(result.mode).toBe('fallback');
+    expect(result.mode).toBe('ollama');
+    expect(result.headquartersMode).toBe('reserve');
+    expect(client.chat).toHaveBeenCalledWith(expect.objectContaining({
+      role: 'headquarters-fallback',
+      model: 'fast-command:latest',
+      think: false,
+    }));
     expect(engine.getSnapshot().ships.filter((ship) => ship.faction === 'ignis').every((ship) => ship.hasActed)).toBe(true);
+  });
+
+  it('lets unit agents act without recommendations when both headquarters models fail', async () => {
+    const engine = GameEngine.create(loadGameConfigs(), { humanFaction: 'cryos' });
+    engine.endFactionTurn();
+    const unitPayloads = [];
+    const client = {
+      updateSettings: vi.fn(),
+      chat: vi.fn(async ({ role, payload }) => {
+        if (['headquarters', 'headquarters-fallback'].includes(role)) {
+          throw new Error('OLLAMA_TIMEOUT');
+        }
+        if (role === 'procurement') {
+          expect(payload.commandLinkStatus).toBe('OFFLINE');
+          return { data: { purchaseActionIds: [], spendingPosture: 'SAVE' } };
+        }
+        unitPayloads.push(payload);
+        const wait = payload.legalActions.find((action) => action.type === 'WAIT');
+        return {
+          data: {
+            actionId: wait.id,
+            recommendationStatus: 'WAITING',
+            intentCode: 'LOCAL_COMMAND',
+            reasonCode: 'HEADQUARTERS_OFFLINE',
+            rationale: 'Капитан оценивает сектор самостоятельно.',
+          },
+        };
+      }),
+    };
+    const orchestrator = new MultiAgentTurnOrchestrator({
+      engine,
+      client,
+      settings: {
+        ...DEFAULT_AI_SETTINGS,
+        reportsEnabled: false,
+        fallbackEnabled: false,
+      },
+    });
+
+    const result = await orchestrator.runAiTurn();
+    expect(result.mode).toBe('ollama');
+    expect(result.headquartersMode).toBe('decentralized');
+    expect(result.headquartersPlan.unitRecommendations).toEqual([]);
+    expect(unitPayloads).toHaveLength(1);
+    expect(unitPayloads[0].commandLinkStatus).toBe('OFFLINE');
+    expect(unitPayloads[0].headquartersRecommendation).toBeUndefined();
+    expect(engine.getSnapshot().ships.find((ship) => ship.faction === 'ignis').hasActed).toBe(true);
   });
 
   it('runs independent decision/report stages with serialized artistic reports and enemy economy', async () => {

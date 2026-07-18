@@ -59,6 +59,7 @@ export class MultiAgentTurnOrchestrator {
       headquartersDecisionModel: this.settings.headquartersFallbackModel,
       headquartersThink: false,
       headquartersTemperature: 0,
+      headquartersNumPredict: Math.min(this.settings.headquartersNumPredict, 900),
     }, 'headquarters-fallback');
     const procurementAgent = new ProcurementAgent(this.client, this.settings);
     const unitAgent = new UnitAgent(this.client, this.settings);

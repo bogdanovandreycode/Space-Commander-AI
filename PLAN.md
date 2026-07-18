@@ -16,7 +16,8 @@
 - [x] Перестроить right bar в контекстную карточку с верфью, экономикой, историей и chooser совмещённых объектов.
 - [x] Вынести AI Activity и журнал событий в отдельные доступные диалоги; добавить hover lore-tooltip.
 - [x] Добавить независимые HQ/Procurement/Unit decision/report этапы и единый `AiReport`.
-- [x] Добавить шесть model-select и загрузку отсортированного списка через `/api/tags`.
+- [x] Добавить семь model-select, включая резервный штаб, и загрузку списка через `/api/tags`.
+- [x] Добавить отказоустойчивость штаба: резерв без reasoning и децентрализованные Unit Agents при двойном timeout.
 - [x] Покрыть новые gamecore, AI, Ollama и jsdom UI-сценарии.
 - [ ] Выполнить desktop/mobile browser smoke-test — browser runtime недоступен в текущем окружении; dev server и production HTTP-пути проверены без браузера.
 

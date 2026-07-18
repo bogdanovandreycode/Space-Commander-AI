@@ -108,10 +108,11 @@ describe('UiShell contextual interface', () => {
     expect(tooltip.textContent.length).toBeGreaterThan(60);
   });
 
-  it('uses six model selects, keeps missing saved models, and refreshes sorted options', () => {
+  it('uses seven model selects including reserve HQ, keeps missing models, and refreshes options', () => {
     const settings = createAiSettingsEntity({ unitReportModel: 'missing:latest' });
     ui.openSettings(settings);
-    expect(root.querySelectorAll('select[name$="Model"]')).toHaveLength(6);
+    expect(root.querySelectorAll('select[name$="Model"]')).toHaveLength(7);
+    expect(root.querySelector('select[name="headquartersFallbackModel"]')).toBeTruthy();
     ui.setModelOptions(['zeta:1', 'alpha:1'], settings);
     const select = root.querySelector('select[name="unitReportModel"]');
     expect(select.value).toBe('missing:latest');
