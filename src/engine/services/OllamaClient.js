@@ -74,6 +74,16 @@ export class OllamaClient {
   }
 
   async testConnection(models = []) {
+    const availableModels = await this.listModels();
+    return {
+      ok: true,
+      availableModels,
+      missingModels: [...new Set(models.filter(Boolean))]
+        .filter((model) => !availableModels.includes(model)),
+    };
+  }
+
+  async listModels() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), Math.min(this.settings.timeoutMs, 10000));
     try {
@@ -82,12 +92,9 @@ export class OllamaClient {
       });
       if (!response.ok) throw new Error(`OLLAMA_HTTP_${response.status}`);
       const data = await response.json();
-      const availableModels = (data.models ?? []).map((item) => item.name ?? item.model).filter(Boolean);
-      return {
-        ok: true,
-        availableModels,
-        missingModels: [...new Set(models.filter(Boolean))].filter((model) => !availableModels.includes(model)),
-      };
+      return [...new Set(
+        (data.models ?? []).map((item) => item.name ?? item.model).filter(Boolean),
+      )].sort((a, b) => a.localeCompare(b));
     } catch (error) {
       throw this.#humanizeError(error);
     } finally {

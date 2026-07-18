@@ -1,4 +1,5 @@
 import { createFactionEntity } from './FactionEntity.js';
+import { createAiReportEntity } from './AiReportEntity.js';
 import { createGameEventEntity } from './GameEventEntity.js';
 import { createGameMapEntity } from './GameMapEntity.js';
 import { createPlanetEntity } from './PlanetEntity.js';
@@ -36,13 +37,24 @@ export function createGameStateEntity(data) {
     ships,
     planets,
     eventLog,
+    commandReports: Array.isArray(data.commandReports)
+      ? data.commandReports.map(createAiReportEntity)
+      : [],
     unitReports: Array.isArray(data.unitReports)
       ? data.unitReports.map(createUnitReportEntity)
       : [],
+    nameSeed: data.nameSeed ?? 0,
+    nameSequence: data.nameSequence ?? 0,
     nextEntityId: data.nextEntityId
       ?? Math.max(0, ...ships.map((entity) => entity.id), ...planets.map((entity) => entity.id)) + 1,
     nextEventId: data.nextEventId
       ?? Math.max(0, ...eventLog.map((event) => event.id)) + 1,
+    nextReportId: data.nextReportId
+      ?? Math.max(
+        0,
+        ...(data.commandReports ?? []).map((report) => report.id ?? 0),
+        ...(data.unitReports ?? []).map((report) => report.id ?? 0),
+      ) + 1,
     winner: data.winner ?? null,
   };
 }

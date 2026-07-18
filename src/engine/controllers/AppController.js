@@ -27,7 +27,9 @@ export class AppController {
       clearSave: () => this.clearSave(),
       endTurn: () => this.endTurn(),
       build: (actionId) => this.build(actionId),
-      openSettings: () => this.ui.openSettings(this.settings),
+      openSettings: () => this.openSettings(),
+      refreshModels: (settings) => this.refreshModels(settings),
+      selectObject: (kind, id) => this.selectObject(kind, id),
       saveSettings: (settings) => this.saveSettings(settings),
       testConnection: (settings) => this.testConnection(settings),
       restart: () => this.restart(),
@@ -107,8 +109,9 @@ export class AppController {
   async handleCellClick(x, y) {
     if (this.busy || !this.engine) return;
     const snapshot = this.engine.getSnapshot();
-    const clickedShip = snapshot.ships.find((ship) => ship.x === x && ship.y === y);
-    const clickedPlanet = snapshot.planets.find((planet) => planet.x === x && planet.y === y);
+    const objects = this.engine.getObjectsAt(x, y);
+    const clickedShip = objects.find((object) => object.kind === 'ship')?.entity;
+    const clickedPlanet = objects.find((object) => object.kind === 'planet')?.entity;
     if (snapshot.activeFaction !== snapshot.humanFaction || snapshot.winner) return;
 
     if (this.selection?.kind === 'ship') {
@@ -129,17 +132,34 @@ export class AppController {
       }
     }
 
-    if (
-      clickedShip
-      && clickedPlanet
-      && this.selection?.kind === 'ship'
-      && this.selection.id === clickedShip.id
-    ) {
-      this.selection = { kind: 'planet', id: clickedPlanet.id };
+    if (clickedShip && clickedPlanet) {
+      this.selection = {
+        kind: 'sector',
+        x,
+        y,
+        candidates: [
+          { kind: 'ship', id: clickedShip.id },
+          { kind: 'planet', id: clickedPlanet.id },
+        ],
+      };
     } else if (clickedShip) this.selection = { kind: 'ship', id: clickedShip.id };
     else if (clickedPlanet) this.selection = { kind: 'planet', id: clickedPlanet.id };
     else this.selection = null;
     this.#refresh();
+  }
+
+  selectObject(kind, id) {
+    if (!this.engine || !['ship', 'planet'].includes(kind)) return;
+    this.selection = { kind, id: Number(id) };
+    this.#refresh();
+  }
+
+  handleCellHover(x, y, anchor) {
+    if (!this.engine || x == null || y == null) {
+      this.ui.showBoardTooltip();
+      return;
+    }
+    this.ui.showBoardTooltip(this.engine.getObjectsAt(x, y), anchor);
   }
 
   async build(actionId) {
@@ -167,16 +187,46 @@ export class AppController {
     this.ui.setActivity(this.locale === 'ru' ? 'Настройки AI сохранены.' : 'AI settings saved.');
   }
 
+  async openSettings() {
+    this.ui.openSettings(this.settings);
+    await this.refreshModels(this.settings);
+  }
+
+  async refreshModels(settings = this.settings) {
+    this.ui.setConnectionStatus(this.locale === 'ru' ? 'Загрузка моделей…' : 'Loading models…');
+    const client = new OllamaClient({ ...this.settings, ...settings }, this.diagnostics);
+    try {
+      const models = await client.listModels();
+      this.ui.setModelOptions(models, { ...this.settings, ...settings });
+      this.ui.setConnectionStatus(
+        models.length
+          ? (this.locale === 'ru' ? `Найдено моделей: ${models.length}.` : `Models found: ${models.length}.`)
+          : (this.locale === 'ru' ? 'Ollama доступна, но моделей не найдено.' : 'Ollama is available, but no models were found.'),
+        true,
+      );
+    } catch (error) {
+      this.ui.setModelOptions([], { ...this.settings, ...settings });
+      const message = error?.message === 'OLLAMA_NETWORK_OR_CORS'
+        ? (this.locale === 'ru'
+          ? 'Список недоступен: проверьте Ollama и OLLAMA_ORIGINS. Сохранённые модели оставлены.'
+          : 'Model list unavailable: check Ollama and OLLAMA_ORIGINS. Saved models were preserved.')
+        : (error?.message ?? String(error));
+      this.ui.setConnectionStatus(message);
+    }
+  }
+
   async testConnection(settings) {
     const merged = { ...this.settings, ...settings };
     const client = new OllamaClient(merged, this.diagnostics);
     this.ui.setConnectionStatus(this.locale === 'ru' ? 'Проверка…' : 'Testing…');
     try {
       const result = await client.testConnection([
-        merged.headquartersModel,
-        merged.procurementModel,
-        merged.unitModel,
-        merged.reportModel,
+        merged.headquartersDecisionModel,
+        merged.headquartersReportModel,
+        merged.procurementDecisionModel,
+        merged.procurementReportModel,
+        merged.unitDecisionModel,
+        merged.unitReportModel,
       ]);
       const message = result.missingModels.length
         ? `${this.locale === 'ru' ? 'Ollama доступна. Не найдены' : 'Ollama is available. Missing'}: ${result.missingModels.join(', ')}`
@@ -218,6 +268,7 @@ export class AppController {
     this.renderer = new PixiBoardRenderer(
       this.ui.boardHost,
       (x, y) => this.handleCellClick(x, y),
+      (x, y, anchor) => this.handleCellHover(x, y, anchor),
     );
     await this.renderer.init();
   }
@@ -246,6 +297,12 @@ export class AppController {
     if (this.selection?.kind === 'planet' && !snapshot.planets.some((item) => item.id === this.selection.id)) {
       this.selection = null;
     }
+    if (this.selection?.kind === 'sector') {
+      const objects = this.engine.getObjectsAt(this.selection.x, this.selection.y);
+      if (objects.length < 2) this.selection = objects[0]
+        ? { kind: objects[0].kind, id: objects[0].entity.id }
+        : null;
+    }
     const legalActions = this.selection?.kind === 'ship'
       ? this.engine.generateLegalActionsForUnit(this.selection.id)
       : [];
@@ -254,13 +311,25 @@ export class AppController {
       ? snapshot.ships.find((item) => item.id === this.selection.id)
       : this.selection?.kind === 'planet'
         ? snapshot.planets.find((item) => item.id === this.selection.id)
-        : null;
+        : this.selection?.kind === 'sector'
+          ? { x: this.selection.x, y: this.selection.y, faction: 'grey' }
+          : null;
+    const selectedHistory = this.selection?.kind === 'ship'
+      ? this.engine.getUnitHistory(this.selection.id, 30)
+      : [];
+    const selectedEconomy = this.selection?.kind === 'planet'
+      && selectedObject?.faction
+      && snapshot.factions[selectedObject.faction]
+      ? this.engine.getFactionEconomySnapshot(selectedObject.faction)
+      : null;
     this.renderer?.render(snapshot, selectedObject, legalActions);
     this.ui.updateGame({
       snapshot,
       selection: this.selection,
       legalActions,
       purchaseActions,
+      selectedHistory,
+      selectedEconomy,
     });
   }
 

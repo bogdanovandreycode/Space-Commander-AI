@@ -9,12 +9,18 @@ export function createPlanetEntity(data) {
   }
   return {
     id: data.id,
+    name: String(data.name ?? ''),
     type: data.type,
     faction: data.faction,
     x: data.x,
     y: data.y,
     hp: data.hp,
-    readyFromOwnerTurn: data.readyFromOwnerTurn,
+    productionReadyFromOwnerTurn: data.productionReadyFromOwnerTurn
+      ?? data.readyFromOwnerTurn,
+    repairReadyFromOwnerTurn: data.repairReadyFromOwnerTurn
+      ?? data.readyFromOwnerTurn,
+    incomeReadyFromOwnerTurn: data.incomeReadyFromOwnerTurn
+      ?? data.readyFromOwnerTurn,
     productionUsedOwnerTurn: data.productionUsedOwnerTurn ?? 0,
     damagedSincePreviousOwnerTurn: Boolean(data.damagedSincePreviousOwnerTurn),
   };

@@ -10,7 +10,7 @@ export class HeadquartersAgent {
   async decide(payload, units, planets, credits) {
     const response = await this.client.chat({
       role: 'headquarters',
-      model: this.settings.headquartersModel,
+      model: this.settings.headquartersDecisionModel,
       system: HEADQUARTERS_PROMPT,
       payload,
       think: this.settings.headquartersThink,

@@ -7,6 +7,7 @@ function compactShip(ship, configs) {
   const definition = configs.ships.ships[ship.type];
   return {
     id: ship.id,
+    name: ship.name,
     typeKey: ship.type,
     semanticClass: definition.semanticClass,
     position: [ship.x, ship.y],
@@ -21,13 +22,16 @@ function compactPlanet(planet, configs) {
   const definition = configs.planets.planetTypes[planet.type];
   return {
     id: planet.id,
+    name: planet.name,
     typeKey: planet.type,
     semanticClass: definition.semanticClass,
     faction: planet.faction,
     position: [planet.x, planet.y],
     hp: planet.hp,
     maxHp: definition.maxHp,
-    readyFromOwnerTurn: planet.readyFromOwnerTurn,
+    productionReadyFromOwnerTurn: planet.productionReadyFromOwnerTurn,
+    repairReadyFromOwnerTurn: planet.repairReadyFromOwnerTurn,
+    incomeReadyFromOwnerTurn: planet.incomeReadyFromOwnerTurn,
   };
 }
 
@@ -41,10 +45,13 @@ export function buildCompactRules(configs) {
 
 export function buildGlobalContext(engine, faction) {
   const snapshot = engine.getSnapshot();
+  const enemyFaction = faction === snapshot.humanFaction ? snapshot.aiFaction : snapshot.humanFaction;
   return {
     round: snapshot.round,
     map: { ...snapshot.map, fullyVisible: true, fogOfWar: false },
     credits: snapshot.factions[faction].credits,
+    yourEconomy: engine.getFactionEconomySnapshot(faction),
+    enemyEconomy: engine.getFactionEconomySnapshot(enemyFaction),
     yourUnits: snapshot.ships.filter((ship) => ship.faction === faction)
       .map((ship) => compactShip(ship, engine.configs)),
     enemyUnits: snapshot.ships.filter((ship) => ship.faction !== faction)
@@ -56,6 +63,33 @@ export function buildGlobalContext(engine, faction) {
     ).map((planet) => compactPlanet(planet, engine.configs)),
     neutralPlanets: snapshot.planets.filter((planet) => planet.faction === 'grey')
       .map((planet) => compactPlanet(planet, engine.configs)),
+  };
+}
+
+export function buildEconomicContext(engine, faction) {
+  const snapshot = engine.getSnapshot();
+  const enemyFaction = faction === snapshot.humanFaction ? snapshot.aiFaction : snapshot.humanFaction;
+  const threatenedPlanetIds = snapshot.planets
+    .filter((planet) => planet.faction === faction)
+    .filter((planet) => snapshot.ships
+      .filter((ship) => ship.faction === enemyFaction)
+      .some((ship) => engine.getThreatenedCells(ship.id)
+        .some((sector) => sector.x === planet.x && sector.y === planet.y)))
+    .map((planet) => planet.id);
+  return {
+    own: engine.getFactionEconomySnapshot(faction),
+    enemy: engine.getFactionEconomySnapshot(enemyFaction),
+    threatenedPlanetIds,
+    neutralWorldCount: snapshot.planets.filter((planet) => planet.faction === 'grey').length,
+    counters: Object.fromEntries(Object.entries(engine.configs.ships.ships).map(([type, definition]) => [
+      type,
+      {
+        semanticClass: definition.semanticClass,
+        cost: definition.cost,
+        bonuses: definition.attack.bonuses,
+        primaryUses: definition.ai?.primaryUses ?? [],
+      },
+    ])),
   };
 }
 

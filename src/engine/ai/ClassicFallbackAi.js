@@ -44,16 +44,41 @@ export class ClassicFallbackAi {
   choosePurchase(faction) {
     const snapshot = this.engine.getSnapshot();
     const actions = this.engine.generateLegalPurchaseActions(faction);
+    const enemyFaction = faction === snapshot.humanFaction ? snapshot.aiFaction : snapshot.humanFaction;
+    const ownEconomy = this.engine.getFactionEconomySnapshot(faction);
+    const enemyEconomy = this.engine.getFactionEconomySnapshot(enemyFaction);
     const hasNeutral = snapshot.planets.some((planet) => planet.faction === 'grey');
     const hasScout = snapshot.ships.some((ship) => ship.faction === faction && ship.type === 'scout');
+    const enemyClasses = snapshot.ships
+      .filter((ship) => ship.faction === enemyFaction)
+      .map((ship) => this.engine.configs.ships.ships[ship.type].semanticClass);
+    const planetThreatened = snapshot.planets
+      .filter((planet) => planet.faction === faction)
+      .some((planet) => snapshot.ships
+        .filter((ship) => ship.faction === enemyFaction)
+        .some((ship) => this.engine.getThreatenedCells(ship.id)
+          .some((sector) => sector.x === planet.x && sector.y === planet.y)));
+    const dreadnoughtCost = this.engine.configs.ships.ships.dreadnought.cost;
+    if (
+      !planetThreatened
+      && ownEconomy.credits < dreadnoughtCost
+      && ownEconomy.credits + ownEconomy.projectedIncome >= dreadnoughtCost
+      && enemyEconomy.fleetValue > ownEconomy.fleetValue * 1.25
+    ) return null;
     return actions
       .map((action) => {
+        const definition = this.engine.configs.ships.ships[action.unitType];
         let score = action.unitType === 'corvette' ? 45
           : action.unitType === 'fighter' ? 40
             : action.unitType === 'frigate' ? 38
               : action.unitType === 'dreadnought' ? 30 : 20;
         if (action.unitType === 'scout' && hasNeutral && !hasScout) score += 100;
         if (action.unitType === 'scout' && (!hasNeutral || hasScout)) score -= 100;
+        score += enemyClasses.reduce(
+          (total, semanticClass) => total + ((definition.attack.bonuses[semanticClass] ?? 1) > 1 ? 35 : 0),
+          0,
+        );
+        if (planetThreatened) score += definition.stats.attack + definition.stats.maxHp * 0.5;
         score -= action.cost * 0.2;
         return { action, score };
       })

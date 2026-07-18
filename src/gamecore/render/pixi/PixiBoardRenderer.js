@@ -11,9 +11,10 @@ const COLORS = {
 };
 
 export class PixiBoardRenderer {
-  constructor(host, onCellClick) {
+  constructor(host, onCellClick, onCellHover = () => {}) {
     this.host = host;
     this.onCellClick = onCellClick;
+    this.onCellHover = onCellHover;
     this.app = null;
     this.snapshot = null;
     this.selection = null;
@@ -47,6 +48,8 @@ export class PixiBoardRenderer {
     };
     this.app.stage.addChild(...Object.values(this.layers));
     this.app.canvas.addEventListener('pointerdown', (event) => this.#handlePointer(event));
+    this.app.canvas.addEventListener('pointermove', (event) => this.#handleHover(event));
+    this.app.canvas.addEventListener('pointerleave', () => this.onCellHover(null, null, null));
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.host);
     this.resize();
@@ -224,5 +227,23 @@ export class PixiBoardRenderer {
     if (x >= 0 && y >= 0 && x < this.snapshot.map.width && y < this.snapshot.map.height) {
       this.onCellClick(x, y);
     }
+  }
+
+  #handleHover(event) {
+    if (event.pointerType === 'touch' || !this.snapshot) return;
+    const cell = this.#eventToCell(event);
+    if (!cell) {
+      this.onCellHover(null, null, null);
+      return;
+    }
+    this.onCellHover(cell.x, cell.y, { x: event.clientX, y: event.clientY });
+  }
+
+  #eventToCell(event) {
+    const rect = this.app.canvas.getBoundingClientRect();
+    const x = Math.floor((event.clientX - rect.left) / rect.width * this.snapshot.map.width);
+    const y = Math.floor((event.clientY - rect.top) / rect.height * this.snapshot.map.height);
+    if (x < 0 || y < 0 || x >= this.snapshot.map.width || y >= this.snapshot.map.height) return null;
+    return { x, y };
   }
 }

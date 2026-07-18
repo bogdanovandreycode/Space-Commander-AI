@@ -1,5 +1,10 @@
 import { ACTION_TYPES } from '../../gamecore/services/config/constants.js';
-import { buildCompactRules, buildGlobalContext, buildLocalTacticalContext } from './context/buildContexts.js';
+import {
+  buildCompactRules,
+  buildEconomicContext,
+  buildGlobalContext,
+  buildLocalTacticalContext,
+} from './context/buildContexts.js';
 import { ClassicFallbackAi } from './ClassicFallbackAi.js';
 import { HeadquartersAgent } from './HeadquartersAgent.js';
 import { ProcurementAgent } from './ProcurementAgent.js';
@@ -51,7 +56,9 @@ export class MultiAgentTurnOrchestrator {
     const headquartersAgent = new HeadquartersAgent(this.client, this.settings);
     const procurementAgent = new ProcurementAgent(this.client, this.settings);
     const unitAgent = new UnitAgent(this.client, this.settings);
-    const reportAgent = new ReportAgent(this.client, this.settings);
+    const headquartersReportAgent = new ReportAgent(this.client, this.settings, 'headquarters');
+    const procurementReportAgent = new ReportAgent(this.client, this.settings, 'procurement');
+    const unitReportAgent = new ReportAgent(this.client, this.settings, 'unit');
 
     let headquartersPlan;
     try {
@@ -71,12 +78,19 @@ export class MultiAgentTurnOrchestrator {
         requiredOutput: {
           doctrine: 'string',
           commanderComment: 'short string',
+          strategicRationale: 'short explanation',
           priorities: [],
           unitRecommendations: [],
           executionOrder: ['integer unit IDs'],
           procurementDirective: {},
         },
       }, aiUnits, before.planets, before.factions[faction].credits);
+      this.#queueCommandReport(headquartersReportAgent, 'headquarters', faction, {
+        locale: this.locale,
+        factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
+        currentWorld: buildGlobalContext(this.engine, faction),
+        validatedDecision: headquartersPlan,
+      });
     } catch (error) {
       this.onActivity({ stage: 'error', message: this.#errorMessage(error) });
       if (this.settings.fallbackEnabled) {
@@ -87,7 +101,12 @@ export class MultiAgentTurnOrchestrator {
       return { mode: 'safe-wait', error, events: [...this.turnEvents] };
     }
 
-    await this.#runProcurement(procurementAgent, headquartersPlan, faction);
+    await this.#runProcurement(
+      procurementAgent,
+      procurementReportAgent,
+      headquartersPlan,
+      faction,
+    );
 
     const current = this.engine.getSnapshot();
     const activeUnits = current.ships.filter(
@@ -99,7 +118,7 @@ export class MultiAgentTurnOrchestrator {
       if (this.engine.getSnapshot().winner) break;
       const unit = this.engine.getSnapshot().ships.find((ship) => ship.id === unitId);
       if (!unit || unit.hasActed || unit.faction !== faction) continue;
-      await this.#runUnit(unitAgent, reportAgent, unit, headquartersPlan);
+      await this.#runUnit(unitAgent, unitReportAgent, unit, headquartersPlan);
     }
 
     await this.reportQueue;
@@ -110,11 +129,11 @@ export class MultiAgentTurnOrchestrator {
     return { mode: 'ollama', headquartersPlan, events: [...this.turnEvents] };
   }
 
-  async #runProcurement(agent, headquartersPlan, faction) {
+  async #runProcurement(agent, reportAgent, headquartersPlan, faction) {
     const legalPurchases = this.engine.generateLegalPurchaseActions(faction);
-    if (!legalPurchases.length) return;
     this.onActivity({ stage: 'procurement', message: 'Закупки оценивают верфи…' });
     const snapshot = this.engine.getSnapshot();
+    const economy = buildEconomicContext(this.engine, faction);
     const repairIntentions = headquartersPlan.unitRecommendations
       .filter((item) => item.recommendation.includes('REPAIR')
         || item.acceptableAlternatives.includes('RETREAT_AND_REPAIR'))
@@ -128,21 +147,49 @@ export class MultiAgentTurnOrchestrator {
         protocolVersion: 1,
         faction,
         credits: snapshot.factions[faction].credits,
+        economy,
         headquartersDirective: headquartersPlan.procurementDirective,
         repairIntentions,
         legalPurchases,
+        requiredOutput: {
+          purchaseActionIds: ['integer IDs'],
+          spendingPosture: 'SAVE|SPEND|COUNTER|EXPAND',
+          rationale: 'short explanation',
+        },
       }, legalPurchases, snapshot.factions[faction].credits, headquartersPlan.procurementDirective);
-    } catch {
+    } catch (error) {
       this.onActivity({ stage: 'procurement-error', message: 'Закупка пропущена: сохранены кредиты.' });
+      this.#queueCommandReport(reportAgent, 'procurement', faction, {
+        locale: this.locale,
+        factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
+        economy,
+        validatedDecision: {
+          purchaseActionIds: [],
+          reserveCredits: snapshot.factions[faction].credits,
+          spendingPosture: 'SAVE',
+          rationale: error?.message ?? 'MODEL_ERROR',
+        },
+        actualPurchases: [],
+      });
       return;
     }
+    const actualPurchases = [];
     for (const actionId of decision.purchaseActionIds) {
       const refreshed = this.engine.generateLegalPurchaseActions(faction);
       const action = refreshed.find((candidate) => candidate.id === actionId);
       if (!action) continue;
       const result = this.engine.executePurchaseAction(action);
+      actualPurchases.push(result);
       this.#pushEvent({ eventType: 'PURCHASE', actionId, actualResult: result });
     }
+    this.#queueCommandReport(reportAgent, 'procurement', faction, {
+      locale: this.locale,
+      factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
+      economy,
+      validatedDecision: decision,
+      actualPurchases,
+      economyAfter: buildEconomicContext(this.engine, faction),
+    });
   }
 
   async #runUnit(agent, reportAgent, unit, headquartersPlan) {
@@ -161,8 +208,9 @@ export class MultiAgentTurnOrchestrator {
         faction: unit.faction,
         identity: {
           unitId: unit.id,
+          name: unit.name,
           typeKey: unit.type,
-          position: [unit.x, unit.y],
+          sector: [unit.x, unit.y],
           hp: unit.hp,
         },
         headquartersRecommendation: recommendation,
@@ -211,20 +259,33 @@ export class MultiAgentTurnOrchestrator {
         try {
           const report = await reportAgent.create({
             locale: this.locale,
-            unit: { unitId: unit.id, callsign: unit.aiMemory.callsign, type: unit.type },
+            factionLore: this.engine.configs.factions.factions[unit.faction].loreKeywords,
+            unit: {
+              unitId: unit.id,
+              name: unit.name,
+              callsign: unit.aiMemory.callsign,
+              type: unit.type,
+              sector: [unit.x, unit.y],
+            },
             headquartersRecommendation: recommendation,
             decision,
             actualResult,
           });
           this.engine.saveUnitReport(unit.id, {
             round: this.engine.getSnapshot().round,
+            faction: unit.faction,
             ...report,
             order: recommendation,
             result: actualResult,
           });
           this.onEvent({ eventType: 'UNIT_REPORT', unitId: unit.id, report });
-        } catch {
-          // Reports never affect mechanics.
+        } catch (error) {
+          const report = this.#fallbackReport('unit', { decision, actualResult }, error);
+          this.engine.saveUnitReport(unit.id, {
+            round: this.engine.getSnapshot().round,
+            faction: unit.faction,
+            ...report,
+          });
         }
       });
     }
@@ -251,6 +312,44 @@ export class MultiAgentTurnOrchestrator {
   #pushEvent(event) {
     this.turnEvents.push(event);
     this.onEvent(event);
+  }
+
+  #queueCommandReport(agent, role, faction, payload) {
+    if (!this.settings.reportsEnabled) return;
+    this.reportQueue = this.reportQueue.then(async () => {
+      let report;
+      try {
+        report = await agent.create(payload);
+      } catch (error) {
+        report = this.#fallbackReport(role, payload, error);
+      }
+      const stored = this.engine.saveCommandReport(role, {
+        faction,
+        round: this.engine.getSnapshot().round,
+        ...report,
+      });
+      this.onEvent({ eventType: 'COMMAND_REPORT', role, report: stored });
+    });
+  }
+
+  #fallbackReport(role, payload, error) {
+    const titles = {
+      headquarters: 'Сводка штаба',
+      procurement: 'Экономическая сводка',
+      unit: 'Бортовой журнал',
+    };
+    const decision = payload.validatedDecision ?? payload.decision ?? {};
+    return {
+      role,
+      status: 'PARTIAL',
+      title: titles[role],
+      narrative: role === 'procurement'
+        ? `Экономический канал сохранил ${decision.reserveCredits ?? 'доступный'} резерв после проверки верфей.`
+        : role === 'unit'
+          ? `Корабль завершил действие в соответствии с подтверждённым результатом операции.`
+          : 'Штаб передал флоту проверенные приоритеты текущего цикла.',
+      rationale: decision.rationale ?? error?.message ?? 'REPORT_MODEL_UNAVAILABLE',
+    };
   }
 
   #errorMessage(error) {

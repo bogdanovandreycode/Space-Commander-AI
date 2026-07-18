@@ -10,7 +10,7 @@ export class ProcurementAgent {
   async decide(payload, legalPurchases, credits, directive) {
     const response = await this.client.chat({
       role: 'procurement',
-      model: this.settings.procurementModel,
+      model: this.settings.procurementDecisionModel,
       system: PROCUREMENT_PROMPT,
       payload,
       think: false,

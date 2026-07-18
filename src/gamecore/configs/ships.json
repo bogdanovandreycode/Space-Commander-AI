@@ -8,6 +8,10 @@
         "en": "Scout",
         "ru": "Скаут"
       },
+      "loreDescription": {
+        "en": "A fragile colony vessel carrying climate engines, seed vaults, and the last specialists needed to awaken a Grey World.",
+        "ru": "Хрупкий колониальный корабль несёт климатические машины, хранилища семян и последних специалистов, способных пробудить Серый мир."
+      },
       "semanticClass": "COLONY_SHIP",
       "role": "EXPANSION",
       "cost": 10,
@@ -60,6 +64,10 @@
       "displayName": {
         "en": "Fighter",
         "ru": "Истребитель"
+      },
+      "loreDescription": {
+        "en": "A fast interceptor that cuts across nearby sectors before heavier ships can align their batteries.",
+        "ru": "Быстрый перехватчик рассекает соседние сектора прежде, чем тяжёлые корабли успевают развернуть батареи."
       },
       "semanticClass": "ANTI_COLONY_INTERCEPTOR",
       "role": "FAST_INTERCEPTOR",
@@ -122,6 +130,10 @@
         "en": "Corvette",
         "ru": "Корвет"
       },
+      "loreDescription": {
+        "en": "An escort hull built to break interceptor attacks and hold the narrow approaches to a colony.",
+        "ru": "Эскортный корпус создан, чтобы ломать атаки перехватчиков и удерживать узкие подступы к колониям."
+      },
       "semanticClass": "ANTI_INTERCEPTOR_CORVETTE",
       "role": "ESCORT_AND_COUNTER",
       "cost": 25,
@@ -182,6 +194,10 @@
         "en": "Frigate",
         "ru": "Фрегат"
       },
+      "loreDescription": {
+        "en": "A patient line ship whose armoured silhouette turns an empty sector into a defended frontier.",
+        "ru": "Терпеливый линейный корабль, чья бронированная тень превращает пустой сектор в укреплённый рубеж."
+      },
       "semanticClass": "ARMORED_GENERALIST",
       "role": "LINE_HOLDER",
       "cost": 40,
@@ -236,6 +252,10 @@
       "displayName": {
         "en": "Dreadnought",
         "ru": "Дредноут"
+      },
+      "loreDescription": {
+        "en": "A siege capital ship whose engines move like a migrating moon and whose salvos can erase planetary fortresses.",
+        "ru": "Осадный исполин движется подобно кочующей луне, а его залпы способны стирать с поверхности планетарные крепости."
       },
       "semanticClass": "SIEGE_CAPITAL_SHIP",
       "role": "PLANETARY_SIEGE",

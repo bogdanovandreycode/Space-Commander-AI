@@ -1,10 +1,12 @@
 /**
  * @typedef {Object} AiSettings
  * @property {string} ollamaUrl
- * @property {string} headquartersModel
- * @property {string} procurementModel
- * @property {string} unitModel
- * @property {string} reportModel
+ * @property {string} headquartersDecisionModel
+ * @property {string} headquartersReportModel
+ * @property {string} procurementDecisionModel
+ * @property {string} procurementReportModel
+ * @property {string} unitDecisionModel
+ * @property {string} unitReportModel
  * @property {boolean} headquartersThink
  * @property {number} headquartersTemperature
  * @property {number} procurementTemperature

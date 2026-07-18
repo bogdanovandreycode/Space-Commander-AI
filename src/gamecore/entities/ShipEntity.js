@@ -11,6 +11,7 @@ export function createShipEntity(data) {
   }
   return {
     id: data.id,
+    name: String(data.name ?? ''),
     type: data.type,
     faction: data.faction,
     x: data.x,
@@ -20,6 +21,9 @@ export function createShipEntity(data) {
     movementCooldown: data.movementCooldown ?? 0,
     cooldownSetOwnerTurn: data.cooldownSetOwnerTurn ?? null,
     role: data.role,
-    aiMemory: createUnitMemoryEntity(data.aiMemory),
+    aiMemory: createUnitMemoryEntity({
+      ...data.aiMemory,
+      callsign: data.aiMemory?.callsign || data.name || '',
+    }),
   };
 }

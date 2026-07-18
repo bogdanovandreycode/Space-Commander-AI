@@ -10,7 +10,7 @@ export class UnitAgent {
   async decide(payload, legalActions) {
     const response = await this.client.chat({
       role: 'unit',
-      model: this.settings.unitModel,
+      model: this.settings.unitDecisionModel,
       system: UNIT_PROMPT,
       payload,
       think: false,

@@ -64,6 +64,7 @@ export function validateHeadquartersPlan(value, units, planets, credits) {
   return {
     doctrine: code(value.doctrine, 'BALANCED_OPERATIONS'),
     commanderComment: text(value.commanderComment) || 'Штаб завершил анализ текущего хода.',
+    rationale: text(value.strategicRationale ?? value.rationale, 500),
     priorities: Array.isArray(value.priorities) ? value.priorities.slice(0, 12) : [],
     unitRecommendations: recommendations,
     executionOrder: normalizeExecutionOrder(value.executionOrder, units),
@@ -98,6 +99,10 @@ export function validateProcurementDecision(value, legalPurchases, credits, dire
     reserveCredits: credits - spent,
     reasonCode: code(value.reasonCode, 'VALIDATED'),
     explanation: text(value.explanation, 240),
+    rationale: text(value.rationale ?? value.explanation, 500),
+    spendingPosture: ['SAVE', 'SPEND', 'COUNTER', 'EXPAND'].includes(value.spendingPosture)
+      ? value.spendingPosture
+      : (result.length ? 'SPEND' : 'SAVE'),
   };
 }
 
@@ -112,16 +117,20 @@ export function validateUnitDecision(value, legalActions) {
       : 'REPLACED',
     intentCode: code(value.intentCode),
     reasonCode: code(value.reasonCode),
+    rationale: text(value.rationale, 400),
     confidence: Math.max(0, Math.min(1, Number(value.confidence) || 0.5)),
   };
 }
 
-export function validateReport(value) {
+export function validateReport(value, role = 'unit') {
   if (!value || typeof value !== 'object') throw new Error('INVALID_REPORT');
   return {
+    role,
     status: ['SUCCESS', 'PARTIAL', 'DEFERRED', 'FAILED', 'WAITING'].includes(value.status)
       ? value.status
       : 'PARTIAL',
-    report: text(value.report, 360) || 'Действие завершено.',
+    title: text(value.title, 120) || 'Оперативный рапорт',
+    narrative: text(value.narrative ?? value.report, 900) || 'Операция завершена.',
+    rationale: text(value.rationale, 500),
   };
 }

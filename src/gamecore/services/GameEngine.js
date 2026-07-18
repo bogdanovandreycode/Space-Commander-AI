@@ -1,4 +1,5 @@
 import { createActionResultEntity } from '../entities/ActionResultEntity.js';
+import { createAiReportEntity } from '../entities/AiReportEntity.js';
 import { createGameEventEntity } from '../entities/GameEventEntity.js';
 import { createGameSnapshotEntity } from '../entities/GameSnapshotEntity.js';
 import { createGameStateEntity } from '../entities/GameStateEntity.js';
@@ -10,6 +11,10 @@ import { createShipEntity } from '../entities/ShipEntity.js';
 import { createUnitReportEntity } from '../entities/UnitReportEntity.js';
 import { directionBetween, insideMap, rayDistance } from '../helpers/coordinates.js';
 import { clone } from '../helpers/deepFreeze.js';
+import {
+  deriveLegacyNameSeed,
+  generateEntityName,
+} from '../helpers/NameGenerator.js';
 import {
   ACTION_TYPES,
   DIRECTION_VECTORS,
@@ -70,6 +75,83 @@ export class GameEngine {
 
   getPlanetAt(x, y) {
     return this.#state.planets.find((planet) => planet.x === x && planet.y === y) ?? null;
+  }
+
+  getObjectsAt(x, y) {
+    const snapshot = this.getSnapshot();
+    return Object.freeze([
+      ...snapshot.ships.filter((ship) => ship.x === x && ship.y === y)
+        .map((entity) => Object.freeze({ kind: 'ship', entity })),
+      ...snapshot.planets.filter((planet) => planet.x === x && planet.y === y)
+        .map((entity) => Object.freeze({ kind: 'planet', entity })),
+    ]);
+  }
+
+  getUnitHistory(unitId, limit = 30) {
+    const history = [];
+    for (const event of [...this.#state.eventLog].reverse()) {
+      if (history.length >= limit) break;
+      if (
+        ['SHIP_DEPLOYED', 'UNIT_ACTION', 'PURCHASE'].includes(event.type)
+        && event.details?.unitId === unitId
+      ) {
+        history.push(clone(event));
+      }
+      if (event.type === 'TURN_STARTED') {
+        for (const nested of [...(event.details?.events ?? [])].reverse()) {
+          if (nested.unitId === unitId && history.length < limit) {
+            history.push({
+              id: event.id,
+              type: nested.type,
+              round: event.round,
+              faction: event.faction,
+              details: clone(nested),
+            });
+          }
+        }
+      }
+    }
+    return Object.freeze(history.map((event) => Object.freeze(event)));
+  }
+
+  getFactionEconomySnapshot(factionId) {
+    const faction = this.#state.factions[factionId];
+    if (!faction) return null;
+    const ownerTurn = faction.ownerTurns;
+    const nextOwnerTurn = ownerTurn + 1;
+    const planets = this.#state.planets.filter((planet) => planet.faction === factionId);
+    const ships = this.#state.ships.filter((ship) => ship.faction === factionId);
+    const fleetComposition = {};
+    let fleetValue = 0;
+    for (const ship of ships) {
+      fleetComposition[ship.type] = (fleetComposition[ship.type] ?? 0) + 1;
+      fleetValue += this.#configs.ships.ships[ship.type].cost;
+    }
+    const shipyards = planets.filter(
+      (planet) => this.#configs.planets.planetTypes[planet.type].production.enabled,
+    );
+    const availableShipyards = shipyards.filter((planet) => (
+      planet.productionReadyFromOwnerTurn <= ownerTurn
+      && planet.productionUsedOwnerTurn !== ownerTurn
+      && !this.getShipAt(planet.x, planet.y)
+    )).length;
+    const projectedIncome = planets.reduce((sum, planet) => (
+      planet.incomeReadyFromOwnerTurn <= nextOwnerTurn
+        ? sum + this.#configs.planets.planetTypes[planet.type].incomePerTurn
+        : sum
+    ), 0);
+    return Object.freeze({
+      faction: factionId,
+      credits: faction.credits,
+      ownerTurns: ownerTurn,
+      projectedIncome,
+      planetCount: planets.length,
+      shipyardCount: shipyards.length,
+      availableShipyards,
+      fleetCount: ships.length,
+      fleetValue,
+      fleetComposition: Object.freeze({ ...fleetComposition }),
+    });
   }
 
   /**
@@ -171,7 +253,7 @@ export class GameEngine {
       const planetDefinition = this.#configs.planets.planetTypes[planet.type];
       if (
         !planetDefinition.production.enabled
-        || planet.readyFromOwnerTurn > ownerTurn
+        || planet.productionReadyFromOwnerTurn > ownerTurn
         || planet.productionUsedOwnerTurn === ownerTurn
         || (planetDefinition.production.blockedWhenOccupied && this.getShipAt(planet.x, planet.y))
       ) continue;
@@ -245,8 +327,12 @@ export class GameEngine {
       planet.type = factionDefinition.planetType;
       planet.faction = ship.faction;
       planet.hp = neutralDefinition.onColonized.initialHp;
-      planet.readyFromOwnerTurn = this.#state.factions[ship.faction].ownerTurns + 1;
-      planet.productionUsedOwnerTurn = this.#state.factions[ship.faction].ownerTurns;
+      const ownerTurn = this.#state.factions[ship.faction].ownerTurns;
+      const activation = neutralDefinition.onColonized;
+      planet.productionReadyFromOwnerTurn = ownerTurn + Number(activation.productionStartsNextOwnerTurn);
+      planet.repairReadyFromOwnerTurn = ownerTurn + Number(activation.repairStartsNextOwnerTurn);
+      planet.incomeReadyFromOwnerTurn = ownerTurn + Number(activation.incomeStartsNextOwnerTurn);
+      planet.productionUsedOwnerTurn = ownerTurn - 1;
       planet.damagedSincePreviousOwnerTurn = false;
       colonizedPlanetId = planet.id;
       this.#state.ships = this.#state.ships.filter((item) => item.id !== ship.id);
@@ -288,10 +374,12 @@ export class GameEngine {
     const planet = this.getPlanet(action.planetId);
     const definition = this.#configs.ships.ships[action.unitType];
     const idForShip = this.#state.nextEntityId++;
+    const name = this.#nextName('ship', faction, action.unitType, idForShip);
     this.#state.factions[faction].credits -= definition.cost;
     planet.productionUsedOwnerTurn = this.#state.factions[faction].ownerTurns;
     this.#state.ships.push(createShipEntity({
       id: idForShip,
+      name,
       type: action.unitType,
       faction,
       x: planet.x,
@@ -302,7 +390,7 @@ export class GameEngine {
       cooldownSetOwnerTurn: null,
       role: faction === this.#state.humanFaction ? 'human' : 'ai',
       aiMemory: {
-        callsign: `${definition.semanticClass}-${idForShip}`,
+        callsign: name,
         reports: [],
         kills: 0,
         missionsCompleted: 0,
@@ -374,7 +462,11 @@ export class GameEngine {
     for (const ship of this.#state.ships.filter((item) => item.faction === faction)) {
       ship.hasActed = false;
       const planet = this.getPlanetAt(ship.x, ship.y);
-      if (ownerTurn > 1 && planet?.faction === faction && planet.readyFromOwnerTurn <= ownerTurn) {
+      if (
+        ownerTurn > 1
+        && planet?.faction === faction
+        && planet.repairReadyFromOwnerTurn <= ownerTurn
+      ) {
         const repair = this.#configs.planets.planetTypes[planet.type].shipRepair;
         if (repair.enabled) {
           const maximum = this.#configs.ships.ships[ship.type].stats.maxHp;
@@ -391,16 +483,21 @@ export class GameEngine {
     }
 
     for (const planet of this.#state.planets.filter((item) => item.faction === faction)) {
-      if (ownerTurn > 1 && planet.readyFromOwnerTurn <= ownerTurn) {
-        const definition = this.#configs.planets.planetTypes[planet.type];
+      const definition = this.#configs.planets.planetTypes[planet.type];
+      if (ownerTurn > 1 && planet.incomeReadyFromOwnerTurn <= ownerTurn) {
         factionState.credits += definition.incomePerTurn;
-        if (!planet.damagedSincePreviousOwnerTurn && definition.planetRepairPerTurn > 0) {
+      }
+      if (
+        ownerTurn > 1
+        && planet.repairReadyFromOwnerTurn <= ownerTurn
+        && !planet.damagedSincePreviousOwnerTurn
+        && definition.planetRepairPerTurn > 0
+      ) {
           const repaired = Math.min(definition.planetRepairPerTurn, definition.maxHp - planet.hp);
           if (repaired > 0) {
             planet.hp += repaired;
             events.push({ type: 'PLANET_REPAIRED', planetId: planet.id, amount: repaired });
           }
-        }
       }
       planet.damagedSincePreviousOwnerTurn = false;
     }
@@ -454,6 +551,7 @@ export class GameEngine {
     const stored = createUnitReportEntity({
       unitId,
       callsign: ship?.aiMemory.callsign ?? `UNIT-${unitId}`,
+      id: this.#state.nextReportId++,
       ...clone(report),
     });
     this.#state.unitReports.push(stored);
@@ -464,6 +562,22 @@ export class GameEngine {
       if (report.status === 'SUCCESS') ship.aiMemory.missionsCompleted += 1;
     }
     this.#touch();
+  }
+
+  saveCommandReport(role, report) {
+    const stored = createAiReportEntity({
+      id: this.#state.nextReportId++,
+      role,
+      ...clone(report),
+    });
+    this.#state.commandReports.push(stored);
+    const sameRole = this.#state.commandReports.filter((item) => item.role === role);
+    if (sameRole.length > 30) {
+      const removeIds = new Set(sameRole.slice(0, sameRole.length - 30).map((item) => item.id));
+      this.#state.commandReports = this.#state.commandReports.filter((item) => !removeIds.has(item.id));
+    }
+    this.#touch();
+    return clone(stored);
   }
 
   #makeUnitAction({ type, ship, to, targetUnitId = null, planetId = null }) {
@@ -551,6 +665,23 @@ export class GameEngine {
     return [...(definition.ai?.primaryUses ?? [])].slice(0, 5);
   }
 
+  #nextName(kind, faction, type, id) {
+    const usedNames = new Set([
+      ...this.#state.ships.map((ship) => ship.name).filter(Boolean),
+      ...this.#state.planets.map((planet) => planet.name).filter(Boolean),
+    ]);
+    const name = generateEntityName(this.#configs, {
+      kind,
+      faction,
+      type,
+      id,
+      seed: this.#state.nameSeed,
+      sequence: this.#state.nameSequence++,
+      usedNames,
+    });
+    return name;
+  }
+
   #getActionId(signature) {
     if (!this.#actionIds.has(signature)) this.#actionIds.set(signature, this.#nextActionId++);
     return this.#actionIds.get(signature);
@@ -599,9 +730,62 @@ export class GameEngine {
     if (!Array.isArray(this.#state.ships) || !Array.isArray(this.#state.planets)) {
       throw new Error('INVALID_SAVE_DATA');
     }
+    this.#state.nameSeed ??= deriveLegacyNameSeed(this.#state);
+    this.#state.nameSequence ??= 0;
+    this.#state.commandReports ??= [];
+    this.#state.nextReportId ??= 1;
+    for (const planet of this.#state.planets) {
+      const legacyReady = planet.readyFromOwnerTurn ?? 1;
+      const ownerTurn = this.#state.factions?.[planet.faction]?.ownerTurns;
+      planet.productionReadyFromOwnerTurn ??= ownerTurn == null
+        ? legacyReady
+        : Math.min(legacyReady, ownerTurn);
+      planet.repairReadyFromOwnerTurn ??= ownerTurn == null
+        ? legacyReady
+        : Math.min(legacyReady, ownerTurn);
+      planet.incomeReadyFromOwnerTurn ??= legacyReady;
+    }
     this.#state = createGameStateEntity(this.#state);
+    const usedNames = new Set([
+      ...this.#state.planets.map((planet) => planet.name).filter(Boolean),
+      ...this.#state.ships.map((ship) => ship.name).filter(Boolean),
+    ]);
+    for (const planet of this.#state.planets) {
+      if (!planet.name) {
+        planet.name = generateEntityName(this.#configs, {
+          kind: 'planet',
+          faction: planet.faction,
+          type: planet.type,
+          id: planet.id,
+          seed: this.#state.nameSeed,
+          sequence: this.#state.nameSequence++,
+          usedNames,
+        });
+        usedNames.add(planet.name);
+      }
+    }
+    for (const ship of this.#state.ships) {
+      if (!ship.name) {
+        ship.name = generateEntityName(this.#configs, {
+          kind: 'ship',
+          faction: ship.faction,
+          type: ship.type,
+          id: ship.id,
+          seed: this.#state.nameSeed,
+          sequence: this.#state.nameSequence++,
+          usedNames,
+        });
+        usedNames.add(ship.name);
+      }
+      ship.aiMemory.callsign = ship.name;
+    }
     this.#state.nextEntityId ??= Math.max(0, ...this.#state.ships.map((item) => item.id)) + 1;
     this.#state.nextEventId ??= Math.max(0, ...this.#state.eventLog.map((item) => item.id)) + 1;
+    this.#state.nextReportId ??= Math.max(
+      0,
+      ...this.#state.commandReports.map((item) => item.id ?? 0),
+      ...this.#state.unitReports.map((item) => item.id ?? 0),
+    ) + 1;
     this.#state.unitReports ??= [];
   }
 }

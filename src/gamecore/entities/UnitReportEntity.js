@@ -7,5 +7,9 @@ export function createUnitReportEntity(data = {}) {
     ...data,
     unitId: data.unitId,
     callsign: String(data.callsign ?? ''),
+    role: data.role ?? 'unit',
+    title: String(data.title ?? ''),
+    narrative: String(data.narrative ?? data.report ?? ''),
+    rationale: String(data.rationale ?? ''),
   };
 }

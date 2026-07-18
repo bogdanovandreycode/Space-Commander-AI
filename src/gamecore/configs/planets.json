@@ -7,6 +7,10 @@
         "en": "Grey Forest World",
         "ru": "Серый лесной мир"
       },
+      "loreDescription": {
+        "en": "An unaligned biosphere where oceans and forests still change without engines, doctrine, or permission.",
+        "ru": "Неприсоединившаяся биосфера, где океаны и леса всё ещё меняются без машин, доктрин и чьего-либо разрешения."
+      },
       "semanticClass": "NEUTRAL_PLANET",
       "owner": "GREY",
       "combatTargetable": false,
@@ -28,14 +32,18 @@
         "consumeColonizer": true,
         "initialHp": 45,
         "incomeStartsNextOwnerTurn": true,
-        "productionStartsNextOwnerTurn": true,
-        "repairStartsNextOwnerTurn": true
+        "productionStartsNextOwnerTurn": false,
+        "repairStartsNextOwnerTurn": false
       }
     },
     "cryos_colony": {
       "displayName": {
         "en": "Cryos Colony",
         "ru": "Колония Криос"
+      },
+      "loreDescription": {
+        "en": "Beneath reflective ice, archives and shipyards preserve life at the measured pace of the Eternal Stillness.",
+        "ru": "Под отражающим льдом архивы и верфи сохраняют жизнь в размеренном ритме Вечной Неподвижности."
       },
       "semanticClass": "FRIENDLY_PLANET",
       "owner": "CRYOS",
@@ -64,6 +72,10 @@
         "en": "Ignis Colony",
         "ru": "Колония Игнис"
       },
+      "loreDescription": {
+        "en": "Mantle furnaces and orbital foundries turn the planet into another heartbeat of the Radiant Pulse.",
+        "ru": "Мантийные печи и орбитальные литейные превращают планету в новый удар сердца Сияющего Импульса."
+      },
       "semanticClass": "FRIENDLY_PLANET",
       "owner": "IGNIS",
       "combatTargetable": true,
@@ -90,6 +102,10 @@
       "displayName": {
         "en": "Cryos Homeworld",
         "ru": "Столичный мир Криос"
+      },
+      "loreDescription": {
+        "en": "The deepest Cryos vaults descend here, guarding memories older than the war beneath engineered glaciers.",
+        "ru": "Здесь глубочайшие хранилища Криос уходят под искусственные ледники, оберегая память древнее самой войны."
       },
       "semanticClass": "HOMEWORLD",
       "owner": "CRYOS",
@@ -118,6 +134,10 @@
       "displayName": {
         "en": "Ignis Homeworld",
         "ru": "Столичный мир Игнис"
+      },
+      "loreDescription": {
+        "en": "A furnace-world whose orbital rings feed fleets with the momentum of a civilization that refuses to cool.",
+        "ru": "Мир-горнило, чьи орбитальные кольца питают флот напором цивилизации, отказавшейся остывать."
       },
       "semanticClass": "HOMEWORLD",
       "owner": "IGNIS",

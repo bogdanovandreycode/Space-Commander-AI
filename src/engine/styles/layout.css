@@ -179,18 +179,7 @@
   background: var(--panel);
 }
 
-.intel-grid {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 14px;
-  margin-top: 14px;
-}
-
-.intel-card {
-  min-height: 210px;
-  padding: 16px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
+.context-panel {
+  max-height: min(760px, calc(100vh - 110px));
+  overflow: auto;
 }

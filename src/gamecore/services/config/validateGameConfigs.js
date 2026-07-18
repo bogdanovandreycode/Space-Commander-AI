@@ -26,6 +26,7 @@ export function validateGameConfigs(configs) {
   const semanticClasses = new Set();
   for (const [type, ship] of shipEntries) {
     assert(ship.displayName?.en && ship.displayName?.ru, `${type}: нет локализованного имени`);
+    assert(ship.loreDescription?.en && ship.loreDescription?.ru, `${type}: нет loreDescription`);
     assert(isFiniteNonNegative(ship.cost), `${type}.cost недопустим`);
     assert(isFiniteNonNegative(ship.stats?.attack), `${type}.stats.attack недопустим`);
     assert(ship.stats?.maxHp > 0, `${type}.stats.maxHp должен быть положительным`);
@@ -45,6 +46,8 @@ export function validateGameConfigs(configs) {
   const planetEntries = Object.entries(configs.planets.planetTypes ?? {});
   assert(planetEntries.length >= 3, 'нет обязательных типов планет');
   for (const [type, planet] of planetEntries) {
+    assert(planet.displayName?.en && planet.displayName?.ru, `${type}: нет локализованного имени`);
+    assert(planet.loreDescription?.en && planet.loreDescription?.ru, `${type}: нет loreDescription`);
     assert(planet.maxHp > 0, `${type}.maxHp должен быть положительным`);
     assert(isFiniteNonNegative(planet.flatDamageReduction), `${type}.flatDamageReduction недопустим`);
     assert(isFiniteNonNegative(planet.incomePerTurn), `${type}.incomePerTurn недопустим`);
@@ -56,7 +59,16 @@ export function validateGameConfigs(configs) {
     assert(data, `нет фракции ${faction}`);
     assert(configs.planets.planetTypes[data.planetType], `${faction}.planetType не найден`);
     assert(Object.keys(data.baselineMechanicalModifiers ?? {}).length === 0, `${faction} нарушает baseline-симметрию`);
+    for (const [groupName, groups] of [
+      ['shipNames', configs.names.shipNames],
+      ['planetNames', configs.names.planetNames],
+    ]) {
+      const group = groups?.[faction];
+      assert(group?.prefixes?.length > 1, `${groupName}.${faction}.prefixes недостаточен`);
+      assert(group?.suffixes?.length > 1, `${groupName}.${faction}.suffixes недостаточен`);
+    }
   }
+  assert(configs.names.planetNames?.grey, 'planetNames.grey отсутствует');
 
   assert(configs.factions.baselineIsSymmetrical === true, 'baseline должен быть симметричным');
   assert(configs.gameRules.map.fogOfWar === false, 'fogOfWar должен быть выключен');

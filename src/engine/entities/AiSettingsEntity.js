@@ -1,9 +1,11 @@
 export const DEFAULT_AI_SETTINGS = Object.freeze({
   ollamaUrl: 'http://localhost:11434',
-  headquartersModel: 'deepseek-r1:8b',
-  procurementModel: 'gemma3:4b',
-  unitModel: 'gemma3:4b',
-  reportModel: 'gemma3:4b',
+  headquartersDecisionModel: 'deepseek-r1:8b',
+  headquartersReportModel: 'gemma3:4b',
+  procurementDecisionModel: 'gemma3:4b',
+  procurementReportModel: 'gemma3:4b',
+  unitDecisionModel: 'gemma3:4b',
+  unitReportModel: 'gemma3:4b',
   headquartersThink: true,
   headquartersTemperature: 0.1,
   procurementTemperature: 0,
@@ -31,5 +33,31 @@ export const DEFAULT_AI_SETTINGS = Object.freeze({
  * @param {Partial<import('./types.js').AiSettings>} [overrides]
  */
 export function createAiSettingsEntity(overrides = {}) {
-  return { ...DEFAULT_AI_SETTINGS, ...(overrides ?? {}) };
+  const source = overrides ?? {};
+  const settings = {
+    ...DEFAULT_AI_SETTINGS,
+    ...source,
+    headquartersDecisionModel: source.headquartersDecisionModel
+      ?? source.headquartersModel
+      ?? DEFAULT_AI_SETTINGS.headquartersDecisionModel,
+    headquartersReportModel: source.headquartersReportModel
+      ?? source.reportModel
+      ?? DEFAULT_AI_SETTINGS.headquartersReportModel,
+    procurementDecisionModel: source.procurementDecisionModel
+      ?? source.procurementModel
+      ?? DEFAULT_AI_SETTINGS.procurementDecisionModel,
+    procurementReportModel: source.procurementReportModel
+      ?? source.reportModel
+      ?? DEFAULT_AI_SETTINGS.procurementReportModel,
+    unitDecisionModel: source.unitDecisionModel
+      ?? source.unitModel
+      ?? DEFAULT_AI_SETTINGS.unitDecisionModel,
+    unitReportModel: source.unitReportModel
+      ?? source.reportModel
+      ?? DEFAULT_AI_SETTINGS.unitReportModel,
+  };
+  for (const legacyKey of ['headquartersModel', 'procurementModel', 'unitModel', 'reportModel']) {
+    delete settings[legacyKey];
+  }
+  return settings;
 }

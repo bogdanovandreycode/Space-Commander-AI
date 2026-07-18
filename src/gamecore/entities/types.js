@@ -10,6 +10,7 @@
  *
  * @typedef {Object} Ship
  * @property {number} id
+ * @property {string} name
  * @property {ShipType} type
  * @property {FactionKey} faction
  * @property {number} x
@@ -23,12 +24,15 @@
  *
  * @typedef {Object} Planet
  * @property {number} id
+ * @property {string} name
  * @property {string} type
  * @property {FactionKey} faction
  * @property {number} x
  * @property {number} y
  * @property {number} hp
- * @property {number} readyFromOwnerTurn
+ * @property {number} productionReadyFromOwnerTurn
+ * @property {number} repairReadyFromOwnerTurn
+ * @property {number} incomeReadyFromOwnerTurn
  * @property {number} productionUsedOwnerTurn
  * @property {boolean} damagedSincePreviousOwnerTurn
  *
@@ -100,9 +104,13 @@
  * @property {Ship[]} ships
  * @property {Planet[]} planets
  * @property {GameEvent[]} eventLog
+ * @property {Array<object>} commandReports
  * @property {UnitReport[]} unitReports
+ * @property {number} nameSeed
+ * @property {number} nameSequence
  * @property {number} nextEntityId
  * @property {number} nextEventId
+ * @property {number} nextReportId
  * @property {FactionKey|null} winner
  *
  * @typedef {Readonly<GameState>} GameSnapshot
@@ -115,6 +123,7 @@
  * @property {object} aiSemantics
  * @property {object} factions
  * @property {object} gameRules
+ * @property {object} names
  * @property {object} planets
  * @property {object} ships
  */
