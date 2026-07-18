@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "mapVisibility": {
+    "mapFullyVisible": true,
+    "fogOfWar": false,
+    "scoutingMechanicExists": false
+  },
+  "unitSemantics": {
+    "scout": {
+      "semanticClass": "COLONY_SHIP",
+      "compactRule": "role=colonization;combat=no;vision=no;consumed_on_colonization=yes",
+      "strategicTags": [
+        "EXPANSION_ASSET",
+        "HIGH_VALUE_SOFT_TARGET"
+      ]
+    },
+    "fighter": {
+      "semanticClass": "ANTI_COLONY_INTERCEPTOR",
+      "compactRule": "role=anti_colony;move=2;attack_range=2;dirs=8;bonus_vs=COLONY_SHIP:1.5",
+      "strategicTags": [
+        "FAST_RESPONSE",
+        "COLONY_HUNTER"
+      ]
+    },
+    "corvette": {
+      "semanticClass": "ANTI_INTERCEPTOR_CORVETTE",
+      "compactRule": "role=anti_interceptor;move=1;attack_range=1;dirs=8;bonus_vs=ANTI_COLONY_INTERCEPTOR:1.5",
+      "strategicTags": [
+        "ESCORT",
+        "FIGHTER_COUNTER"
+      ]
+    },
+    "frigate": {
+      "semanticClass": "ARMORED_GENERALIST",
+      "compactRule": "role=line_holder;move=1;move_dirs=4;attack_dirs=8;hp=high;attack=high",
+      "strategicTags": [
+        "LINE_HOLDER",
+        "PLANET_DEFENDER"
+      ]
+    },
+    "dreadnought": {
+      "semanticClass": "SIEGE_CAPITAL_SHIP",
+      "compactRule": "role=siege;move=1;move_dirs=4;movement_every_other_turn=yes;bonus_vs=PLANET:1.5",
+      "strategicTags": [
+        "PLANET_SIEGE",
+        "REQUIRES_ESCORT"
+      ]
+    }
+  },
+  "planetSemantics": {
+    "neutral_forest": {
+      "semanticClass": "NEUTRAL_PLANET",
+      "strategicTags": [
+        "COLONIZATION_TARGET",
+        "NO_INCOME_BEFORE_CAPTURE"
+      ]
+    },
+    "cryos_colony": {
+      "semanticClass": "OWNED_PLANET",
+      "strategicTags": [
+        "INCOME_SOURCE",
+        "SHIPYARD",
+        "REPAIR_POINT"
+      ]
+    },
+    "ignis_colony": {
+      "semanticClass": "OWNED_PLANET",
+      "strategicTags": [
+        "INCOME_SOURCE",
+        "SHIPYARD",
+        "REPAIR_POINT"
+      ]
+    }
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "balanceVersion": "1.0.0",
+  "planetTypes": {
+    "neutral_forest": {
+      "displayName": {
+        "en": "Grey Forest World",
+        "ru": "Серый лесной мир"
+      },
+      "semanticClass": "NEUTRAL_PLANET",
+      "owner": "GREY",
+      "combatTargetable": false,
+      "colonizable": true,
+      "maxHp": 60,
+      "flatDamageReduction": 0,
+      "incomePerTurn": 0,
+      "planetRepairPerTurn": 0,
+      "shipRepair": {
+        "enabled": false,
+        "type": "PERCENT_MAX_HP",
+        "value": 0
+      },
+      "production": {
+        "enabled": false,
+        "maxShipsPerTurn": 0
+      },
+      "onColonized": {
+        "consumeColonizer": true,
+        "initialHp": 45,
+        "incomeStartsNextOwnerTurn": true,
+        "productionStartsNextOwnerTurn": true,
+        "repairStartsNextOwnerTurn": true
+      }
+    },
+    "cryos_colony": {
+      "displayName": {
+        "en": "Cryos Colony",
+        "ru": "Колония Криос"
+      },
+      "semanticClass": "FRIENDLY_PLANET",
+      "owner": "CRYOS",
+      "combatTargetable": true,
+      "colonizable": false,
+      "maxHp": 90,
+      "flatDamageReduction": 4,
+      "incomePerTurn": 10,
+      "planetRepairPerTurn": 6,
+      "planetRepairCondition": "NO_DAMAGE_SINCE_PREVIOUS_OWNER_TURN",
+      "shipRepair": {
+        "enabled": true,
+        "type": "PERCENT_MAX_HP",
+        "value": 0.2,
+        "rounding": "CEIL"
+      },
+      "production": {
+        "enabled": true,
+        "maxShipsPerTurn": 1,
+        "spawnPlacement": "PLANET_CELL",
+        "blockedWhenOccupied": true
+      }
+    },
+    "ignis_colony": {
+      "displayName": {
+        "en": "Ignis Colony",
+        "ru": "Колония Игнис"
+      },
+      "semanticClass": "FRIENDLY_PLANET",
+      "owner": "IGNIS",
+      "combatTargetable": true,
+      "colonizable": false,
+      "maxHp": 90,
+      "flatDamageReduction": 4,
+      "incomePerTurn": 10,
+      "planetRepairPerTurn": 6,
+      "planetRepairCondition": "NO_DAMAGE_SINCE_PREVIOUS_OWNER_TURN",
+      "shipRepair": {
+        "enabled": true,
+        "type": "PERCENT_MAX_HP",
+        "value": 0.2,
+        "rounding": "CEIL"
+      },
+      "production": {
+        "enabled": true,
+        "maxShipsPerTurn": 1,
+        "spawnPlacement": "PLANET_CELL",
+        "blockedWhenOccupied": true
+      }
+    },
+    "cryos_homeworld": {
+      "displayName": {
+        "en": "Cryos Homeworld",
+        "ru": "Столичный мир Криос"
+      },
+      "semanticClass": "HOMEWORLD",
+      "owner": "CRYOS",
+      "optional": true,
+      "combatTargetable": true,
+      "colonizable": false,
+      "maxHp": 120,
+      "flatDamageReduction": 5,
+      "incomePerTurn": 15,
+      "planetRepairPerTurn": 8,
+      "planetRepairCondition": "NO_DAMAGE_SINCE_PREVIOUS_OWNER_TURN",
+      "shipRepair": {
+        "enabled": true,
+        "type": "PERCENT_MAX_HP",
+        "value": 0.25,
+        "rounding": "CEIL"
+      },
+      "production": {
+        "enabled": true,
+        "maxShipsPerTurn": 1,
+        "spawnPlacement": "PLANET_CELL",
+        "blockedWhenOccupied": true
+      }
+    },
+    "ignis_homeworld": {
+      "displayName": {
+        "en": "Ignis Homeworld",
+        "ru": "Столичный мир Игнис"
+      },
+      "semanticClass": "HOMEWORLD",
+      "owner": "IGNIS",
+      "optional": true,
+      "combatTargetable": true,
+      "colonizable": false,
+      "maxHp": 120,
+      "flatDamageReduction": 5,
+      "incomePerTurn": 15,
+      "planetRepairPerTurn": 8,
+      "planetRepairCondition": "NO_DAMAGE_SINCE_PREVIOUS_OWNER_TURN",
+      "shipRepair": {
+        "enabled": true,
+        "type": "PERCENT_MAX_HP",
+        "value": 0.25,
+        "rounding": "CEIL"
+      },
+      "production": {
+        "enabled": true,
+        "maxShipsPerTurn": 1,
+        "spawnPlacement": "PLANET_CELL",
+        "blockedWhenOccupied": true
+      }
+    }
+  }
+}

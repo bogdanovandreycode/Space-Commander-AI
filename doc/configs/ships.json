@@ -1,0 +1,295 @@
+{
+  "schemaVersion": 1,
+  "balanceVersion": "1.0.0",
+  "damageFormula": "max(1, floor(attack * classMultiplier * targetTypeMultiplier) - target.flatDamageReduction)",
+  "ships": {
+    "scout": {
+      "displayName": {
+        "en": "Scout",
+        "ru": "Скаут"
+      },
+      "semanticClass": "COLONY_SHIP",
+      "role": "EXPANSION",
+      "cost": 10,
+      "stats": {
+        "attack": 0,
+        "maxHp": 6,
+        "flatDamageReduction": 0
+      },
+      "movement": {
+        "range": 1,
+        "directions": [
+          "N",
+          "NE",
+          "E",
+          "SE",
+          "S",
+          "SW",
+          "W",
+          "NW"
+        ],
+        "movementCooldownAfterMove": 0
+      },
+      "attack": {
+        "enabled": false,
+        "range": 0,
+        "directions": [],
+        "bonuses": {}
+      },
+      "abilities": {
+        "canColonizeNeutralPlanet": true,
+        "consumedOnColonization": true,
+        "providesVision": false,
+        "revealsMap": false
+      },
+      "ai": {
+        "primaryUses": [
+          "COLONIZE_NEUTRAL_PLANET"
+        ],
+        "forbiddenUses": [
+          "SCOUTING",
+          "PATROLLING",
+          "COMBAT"
+        ],
+        "priorityTargets": [
+          "NEUTRAL_PLANET"
+        ]
+      }
+    },
+    "fighter": {
+      "displayName": {
+        "en": "Fighter",
+        "ru": "Истребитель"
+      },
+      "semanticClass": "ANTI_COLONY_INTERCEPTOR",
+      "role": "FAST_INTERCEPTOR",
+      "cost": 15,
+      "stats": {
+        "attack": 4,
+        "maxHp": 10,
+        "flatDamageReduction": 0
+      },
+      "movement": {
+        "range": 2,
+        "directions": [
+          "N",
+          "NE",
+          "E",
+          "SE",
+          "S",
+          "SW",
+          "W",
+          "NW"
+        ],
+        "movementCooldownAfterMove": 0
+      },
+      "attack": {
+        "enabled": true,
+        "range": 2,
+        "directions": [
+          "N",
+          "NE",
+          "E",
+          "SE",
+          "S",
+          "SW",
+          "W",
+          "NW"
+        ],
+        "bonuses": {
+          "COLONY_SHIP": 1.5
+        }
+      },
+      "abilities": {},
+      "ai": {
+        "primaryUses": [
+          "INTERCEPT_COLONY_SHIP",
+          "RAPID_RESPONSE",
+          "FLANK"
+        ],
+        "priorityTargets": [
+          "COLONY_SHIP",
+          "DAMAGED_LIGHT_UNIT"
+        ],
+        "avoidDirectEngagementWith": [
+          "ANTI_INTERCEPTOR_CORVETTE",
+          "ARMORED_GENERALIST"
+        ]
+      }
+    },
+    "corvette": {
+      "displayName": {
+        "en": "Corvette",
+        "ru": "Корвет"
+      },
+      "semanticClass": "ANTI_INTERCEPTOR_CORVETTE",
+      "role": "ESCORT_AND_COUNTER",
+      "cost": 25,
+      "stats": {
+        "attack": 8,
+        "maxHp": 20,
+        "flatDamageReduction": 0
+      },
+      "movement": {
+        "range": 1,
+        "directions": [
+          "N",
+          "NE",
+          "E",
+          "SE",
+          "S",
+          "SW",
+          "W",
+          "NW"
+        ],
+        "movementCooldownAfterMove": 0
+      },
+      "attack": {
+        "enabled": true,
+        "range": 1,
+        "directions": [
+          "N",
+          "NE",
+          "E",
+          "SE",
+          "S",
+          "SW",
+          "W",
+          "NW"
+        ],
+        "bonuses": {
+          "ANTI_COLONY_INTERCEPTOR": 1.5
+        }
+      },
+      "abilities": {},
+      "ai": {
+        "primaryUses": [
+          "ESCORT_COLONY_SHIP",
+          "COUNTER_FIGHTER",
+          "DEFEND_PLANET"
+        ],
+        "priorityTargets": [
+          "ANTI_COLONY_INTERCEPTOR"
+        ],
+        "avoidDirectEngagementWith": [
+          "ARMORED_GENERALIST",
+          "SIEGE_CAPITAL_SHIP"
+        ]
+      }
+    },
+    "frigate": {
+      "displayName": {
+        "en": "Frigate",
+        "ru": "Фрегат"
+      },
+      "semanticClass": "ARMORED_GENERALIST",
+      "role": "LINE_HOLDER",
+      "cost": 40,
+      "stats": {
+        "attack": 15,
+        "maxHp": 40,
+        "flatDamageReduction": 0
+      },
+      "movement": {
+        "range": 1,
+        "directions": [
+          "N",
+          "E",
+          "S",
+          "W"
+        ],
+        "movementCooldownAfterMove": 0
+      },
+      "attack": {
+        "enabled": true,
+        "range": 1,
+        "directions": [
+          "N",
+          "NE",
+          "E",
+          "SE",
+          "S",
+          "SW",
+          "W",
+          "NW"
+        ],
+        "bonuses": {}
+      },
+      "abilities": {},
+      "ai": {
+        "primaryUses": [
+          "HOLD_LINE",
+          "DEFEND_PLANET",
+          "BREAK_MEDIUM_UNITS",
+          "ESCORT_DREADNOUGHT"
+        ],
+        "priorityTargets": [
+          "ANTI_INTERCEPTOR_CORVETTE",
+          "ANTI_COLONY_INTERCEPTOR"
+        ],
+        "avoidDirectEngagementWith": [
+          "SIEGE_CAPITAL_SHIP"
+        ]
+      }
+    },
+    "dreadnought": {
+      "displayName": {
+        "en": "Dreadnought",
+        "ru": "Дредноут"
+      },
+      "semanticClass": "SIEGE_CAPITAL_SHIP",
+      "role": "PLANETARY_SIEGE",
+      "cost": 75,
+      "stats": {
+        "attack": 30,
+        "maxHp": 70,
+        "flatDamageReduction": 0
+      },
+      "movement": {
+        "range": 1,
+        "directions": [
+          "N",
+          "E",
+          "S",
+          "W"
+        ],
+        "movementCooldownAfterMove": 1,
+        "canAttackWhileMovementCoolingDown": true
+      },
+      "attack": {
+        "enabled": true,
+        "range": 1,
+        "directions": [
+          "N",
+          "NE",
+          "E",
+          "SE",
+          "S",
+          "SW",
+          "W",
+          "NW"
+        ],
+        "bonuses": {
+          "PLANET": 1.5
+        }
+      },
+      "abilities": {},
+      "ai": {
+        "primaryUses": [
+          "SIEGE_PLANET",
+          "BREAK_HEAVY_LINE",
+          "ANCHOR_ADVANCE"
+        ],
+        "priorityTargets": [
+          "PLANET",
+          "ARMORED_GENERALIST"
+        ],
+        "requiresEscort": true,
+        "avoidChasing": [
+          "COLONY_SHIP",
+          "ANTI_COLONY_INTERCEPTOR"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "balanceVersion": "1.0.0",
+  "map": {
+    "defaultWidth": 10,
+    "defaultHeight": 10,
+    "maximumObjectsPerCell": 1,
+    "fogOfWar": false,
+    "scoutingMechanic": false
+  },
+  "turn": {
+    "actionsPerUnit": 1,
+    "moveAndAttackSameTurn": false,
+    "incomeTiming": "START_OF_OWNER_TURN",
+    "repairTiming": "START_OF_OWNER_TURN"
+  },
+  "economy": {
+    "startingCredits": 25,
+    "allowSavingCredits": true
+  },
+  "combat": {
+    "counterAttackOnHit": false,
+    "minimumDamage": 1,
+    "removeUnitAtZeroHp": true,
+    "removePlanetAtZeroHp": true
+  },
+  "colonization": {
+    "allowedUnitSemanticClass": "COLONY_SHIP",
+    "neutralPlanetSemanticClass": "NEUTRAL_PLANET",
+    "consumeUnit": true
+  },
+  "production": {
+    "repeatValidationBeforeBuild": true,
+    "oneBuildPerPlanetPerTurn": true
+  },
+  "victory": {
+    "baselineCondition": "OPPONENT_CONTROLS_ZERO_PLANETS",
+    "optionalCondition": "DESTROY_OPPONENT_HOMEWORLD"
+  }
+}

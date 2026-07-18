@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "baselineIsSymmetrical": true,
+  "factions": {
+    "cryos": {
+      "displayName": "The Cryos Union",
+      "shortName": "Cryos",
+      "color": {
+        "primary": "#4299e1",
+        "accent": "#63b3ed"
+      },
+      "doctrine": "THE_ETERNAL_STILLNESS",
+      "planetType": "cryos_colony",
+      "homeworldType": "cryos_homeworld",
+      "loreKeywords": [
+        "preservation",
+        "stability",
+        "cooling",
+        "containment",
+        "entropy"
+      ],
+      "baselineMechanicalModifiers": {}
+    },
+    "ignis": {
+      "displayName": "The Ignis Hegemony",
+      "shortName": "Ignis",
+      "color": {
+        "primary": "#f56565",
+        "accent": "#ed8936"
+      },
+      "doctrine": "THE_RADIANT_PULSE",
+      "planetType": "ignis_colony",
+      "homeworldType": "ignis_homeworld",
+      "loreKeywords": [
+        "momentum",
+        "ignition",
+        "energy",
+        "breakthrough",
+        "acceleration"
+      ],
+      "baselineMechanicalModifiers": {}
+    },
+    "grey": {
+      "displayName": "The Grey Frontier",
+      "shortName": "Grey",
+      "color": {
+        "primary": "#718096",
+        "accent": "#68d391"
+      },
+      "doctrine": "UNALIGNED_BIOSPHERE",
+      "planetType": "neutral_forest",
+      "baselineMechanicalModifiers": {}
+    }
+  }
+}
