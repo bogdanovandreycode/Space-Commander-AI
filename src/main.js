@@ -1,12 +1,12 @@
-import { createApp } from './app/createApp.js';
-import { loadGameConfigs } from './services/config/loadGameConfigs.js';
+import { createApp } from './engine/app/createApp.js';
+import { loadGameConfigs } from './gamecore/services/config/loadGameConfigs.js';
 import loreEn from '../doc/lore/01_LORE_CANON_EN.md?raw';
 import loreRu from '../doc/lore/02_LORE_CANON_RU.md?raw';
-import './styles/variables.css';
-import './styles/reset.css';
-import './styles/layout.css';
-import './styles/components.css';
-import './styles/responsive.css';
+import './engine/styles/variables.css';
+import './engine/styles/reset.css';
+import './engine/styles/layout.css';
+import './engine/styles/components.css';
+import './engine/styles/responsive.css';
 
 async function bootstrap() {
   const root = document.getElementById('app');

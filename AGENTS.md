@@ -6,18 +6,21 @@ Space Commander — статическое браузерное приложен
 
 ## Приоритет источников
 
-1. `src/configs/*.json` — числа и фактические правила.
+1. `src/gamecore/configs/*.json` — числа и фактические правила.
 2. `doc/design documents` — AI-архитектура и контракты.
 3. `doc/lore` — канон, трактовка механик и баланс.
 4. `old version/with AI` — справочник по Ollama и fallback.
 5. `old version/only html/civ3.html` — визуальная концепция.
 6. `old version/MiniSpaceCommander` — исходные изображения.
 
-`src/configs` — канонический источник конфигурации. `doc` и `old version` считаются read-only. Не использовать файлы из `old version` во время production runtime и не дублировать игровые числа из JSON в коде.
+`src/gamecore/configs` — канонический источник конфигурации. `doc` и `old version` считаются read-only. Не использовать файлы из `old version` во время production runtime и не дублировать игровые числа из JSON в коде.
 
 ## Архитектурные границы
 
-- Бизнес-логика находится в `src/services`: `game`, `ai` и `config`.
+- `src/gamecore` содержит игровые entities, правила, конфигурации, helpers и Pixi-renderer.
+- `src/engine` содержит application-контроллеры, AI, UI, настройки и интеграционные сервисы.
+- Зависимости направлены только `engine → gamecore`; обратные импорты запрещены.
+- Игровые entities создаются фабриками как обычные сериализуемые объекты без runtime-прототипов.
 - `GameEngine` не импортирует UI, Pixi или AI.
 - AI не изменяет состояние и не импортирует UI.
 - Pixi renderer получает snapshot/events и ничего не мутирует.
@@ -33,7 +36,7 @@ Space Commander — статическое браузерное приложен
 - `npm run build` — production build непосредственно в `public`.
 
 `public` является только результатом сборки, исходники и исходные assets там не хранятся.
-Все unit-тесты находятся в корневом `unit` и зеркалируют структуру тестируемых модулей.
+Все unit-тесты находятся в корневом `unit` и зеркалируют структуру `gamecore`/`engine`.
 
 ## Definition of Done
 
