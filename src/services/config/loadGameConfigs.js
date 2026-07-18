@@ -1,8 +1,8 @@
-import aiSemantics from '../../doc/configs/ai_semantics.json';
-import factions from '../../doc/configs/factions.json';
-import gameRules from '../../doc/configs/game_rules.json';
-import planets from '../../doc/configs/planets.json';
-import ships from '../../doc/configs/ships.json';
+import aiSemantics from '../../configs/ai_semantics.json';
+import factions from '../../configs/factions.json';
+import gameRules from '../../configs/game_rules.json';
+import planets from '../../configs/planets.json';
+import ships from '../../configs/ships.json';
 import { validateGameConfigs } from './validateGameConfigs.js';
 
 let cachedConfigs;

@@ -1,4 +1,4 @@
-import { chebyshevDistance, manhattanDistance } from '../../utils/coordinates.js';
+import { chebyshevDistance, manhattanDistance } from '../../../utils/coordinates.js';
 
 function compactShip(ship, configs) {
   const definition = configs.ships.ships[ship.type];

@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from '../config/constants.js';
+import { STORAGE_KEYS } from './config/constants.js';
 
 export const DEFAULT_AI_SETTINGS = Object.freeze({
   ollamaUrl: 'http://localhost:11434',

@@ -1,5 +1,5 @@
 import { createApp } from './app/createApp.js';
-import { loadGameConfigs } from './config/loadGameConfigs.js';
+import { loadGameConfigs } from './services/config/loadGameConfigs.js';
 import loreEn from '../doc/lore/01_LORE_CANON_EN.md?raw';
 import loreRu from '../doc/lore/02_LORE_CANON_RU.md?raw';
 import './styles/variables.css';

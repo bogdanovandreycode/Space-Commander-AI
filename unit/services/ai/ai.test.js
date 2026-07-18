@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadGameConfigs } from '../config/loadGameConfigs.js';
-import { GameEngine } from '../game/GameEngine.js';
-import { DEFAULT_AI_SETTINGS } from '../services/LocalSettingsStorage.js';
-import { ClassicFallbackAi, scoreLegalAction } from './ClassicFallbackAi.js';
-import { MultiAgentTurnOrchestrator } from './MultiAgentTurnOrchestrator.js';
-import { parseModelJson } from './validation/parseModelJson.js';
-import { normalizeExecutionOrder } from './validation/validators.js';
+import { ClassicFallbackAi, scoreLegalAction } from '../../../src/services/ai/ClassicFallbackAi.js';
+import { MultiAgentTurnOrchestrator } from '../../../src/services/ai/MultiAgentTurnOrchestrator.js';
+import { parseModelJson } from '../../../src/services/ai/validation/parseModelJson.js';
+import { normalizeExecutionOrder } from '../../../src/services/ai/validation/validators.js';
+import { loadGameConfigs } from '../../../src/services/config/loadGameConfigs.js';
+import { GameEngine } from '../../../src/services/game/GameEngine.js';
+import { DEFAULT_AI_SETTINGS } from '../../../src/services/LocalSettingsStorage.js';
 
 describe('AI validation and fallback', () => {
   it('parses clean, fenced, and surrounded JSON', () => {

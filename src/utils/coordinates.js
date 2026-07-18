@@ -1,4 +1,4 @@
-import { DIRECTION_VECTORS } from '../config/constants.js';
+import { DIRECTION_VECTORS } from '../services/config/constants.js';
 
 export function insideMap(x, y, map) {
   return Number.isInteger(x) && Number.isInteger(y)

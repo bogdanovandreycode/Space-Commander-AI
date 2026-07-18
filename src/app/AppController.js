@@ -1,7 +1,7 @@
-import { MultiAgentTurnOrchestrator } from '../ai/MultiAgentTurnOrchestrator.js';
-import { GameEngine } from '../game/GameEngine.js';
 import { PixiBoardRenderer } from '../render/pixi/PixiBoardRenderer.js';
+import { MultiAgentTurnOrchestrator } from '../services/ai/MultiAgentTurnOrchestrator.js';
 import { DiagnosticsService } from '../services/DiagnosticsService.js';
+import { GameEngine } from '../services/game/GameEngine.js';
 import { OllamaClient } from '../services/OllamaClient.js';
 
 export class AppController {

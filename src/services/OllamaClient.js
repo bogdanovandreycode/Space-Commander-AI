@@ -1,4 +1,4 @@
-import { parseModelJson } from '../ai/validation/parseModelJson.js';
+import { parseModelJson } from './ai/validation/parseModelJson.js';
 
 function normalizeBaseUrl(value) {
   return String(value || 'http://localhost:11434').trim().replace(/\/+$/, '');

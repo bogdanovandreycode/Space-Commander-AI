@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadGameConfigs } from '../config/loadGameConfigs.js';
-import { GameEngine } from './GameEngine.js';
+import { loadGameConfigs } from '../../../src/services/config/loadGameConfigs.js';
+import { GameEngine } from '../../../src/services/game/GameEngine.js';
 
 const configs = loadGameConfigs();
 

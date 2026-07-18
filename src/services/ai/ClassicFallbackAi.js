@@ -1,5 +1,5 @@
 import { ACTION_TYPES } from '../config/constants.js';
-import { manhattanDistance } from '../utils/coordinates.js';
+import { manhattanDistance } from '../../utils/coordinates.js';
 
 export function scoreLegalAction(action, recommendation = null, snapshot = null, unit = null) {
   let score = action.orderFit + action.strategicValue - action.risk;

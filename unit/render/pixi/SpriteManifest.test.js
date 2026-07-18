@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getShipSpriteUrl } from './SpriteManifest.js';
+import { getShipSpriteUrl } from '../../../src/render/pixi/SpriteManifest.js';
 
 describe('SpriteManifest', () => {
   it('maps textures by faction instead of human/enemy role', () => {

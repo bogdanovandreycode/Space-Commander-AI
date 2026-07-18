@@ -1,6 +1,6 @@
 import { ACTION_TYPES, DIRECTION_VECTORS, NEUTRAL_FACTION, SAVE_VERSION } from '../config/constants.js';
-import { clone, deepFreeze } from '../utils/deepFreeze.js';
-import { directionBetween, insideMap, rayDistance } from '../utils/coordinates.js';
+import { clone, deepFreeze } from '../../utils/deepFreeze.js';
+import { directionBetween, insideMap, rayDistance } from '../../utils/coordinates.js';
 import { createInitialGame } from './createInitialGame.js';
 
 const EMPTY_PREDICTION = Object.freeze({
