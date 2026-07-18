@@ -107,6 +107,26 @@ export function createInitialGame({ humanFaction = 'cryos', configs, nameSeed = 
       damagedSincePreviousOwnerTurn: false,
     })),
   ];
+  const ships = [
+    createShip(
+      1,
+      'scout',
+      humanFaction,
+      BASELINE_MAP.humanScout,
+      HUMAN_ROLE,
+      configs.ships.ships.scout.stats.maxHp,
+      nextName('ship', humanFaction, 'scout', 1),
+    ),
+    createShip(
+      2,
+      'scout',
+      aiFaction,
+      BASELINE_MAP.aiScout,
+      AI_ROLE,
+      configs.ships.ships.scout.stats.maxHp,
+      nextName('ship', aiFaction, 'scout', 2),
+    ),
+  ];
 
   return createGameStateEntity({
     saveVersion: SAVE_VERSION,
@@ -122,26 +142,7 @@ export function createInitialGame({ humanFaction = 'cryos', configs, nameSeed = 
       [humanFaction]: createFactionEntity({ credits: startingCredits, ownerTurns: 1 }),
       [aiFaction]: createFactionEntity({ credits: startingCredits, ownerTurns: 0 }),
     },
-    ships: [
-      createShip(
-        1,
-        'scout',
-        humanFaction,
-        BASELINE_MAP.humanScout,
-        HUMAN_ROLE,
-        configs.ships.ships.scout.stats.maxHp,
-        nextName('ship', humanFaction, 'scout', 1),
-      ),
-      createShip(
-        2,
-        'scout',
-        aiFaction,
-        BASELINE_MAP.aiScout,
-        AI_ROLE,
-        configs.ships.ships.scout.stats.maxHp,
-        nextName('ship', aiFaction, 'scout', 2),
-      ),
-    ],
+    ships,
     planets,
     eventLog: [
       createGameEventEntity({
@@ -149,14 +150,22 @@ export function createInitialGame({ humanFaction = 'cryos', configs, nameSeed = 
         type: 'SHIP_DEPLOYED',
         round: 1,
         faction: humanFaction,
-        details: { unitId: 1, to: [...BASELINE_MAP.humanScout] },
+        details: {
+          unitId: ships[0].id,
+          unitName: ships[0].name,
+          to: [...BASELINE_MAP.humanScout],
+        },
       }),
       createGameEventEntity({
         id: 2,
         type: 'SHIP_DEPLOYED',
         round: 1,
         faction: aiFaction,
-        details: { unitId: 2, to: [...BASELINE_MAP.aiScout] },
+        details: {
+          unitId: ships[1].id,
+          unitName: ships[1].name,
+          to: [...BASELINE_MAP.aiScout],
+        },
       }),
     ],
     commandReports: [],

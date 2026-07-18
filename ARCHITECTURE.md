@@ -21,9 +21,11 @@ src/gamecore/
 └── services/           GameEngine, начальное состояние и config services
 ```
 
-Entity-фабрики существуют для корабля, планеты, фракции, карты, состояния матча, unit memory, unit report, legal action, purchase action, predicted result, action result, события, snapshot и save envelope. Они возвращают обычные объекты без пользовательских прототипов. Это сохраняет совместимость с JSON/localStorage и позволяет движку формировать глубокие immutable snapshots.
+Entity-фабрики существуют для корабля, планеты, фракции, карты, состояния матча, unit memory, AI/unit report, legal action, purchase action, predicted result, action result, события, snapshot и save envelope. Они возвращают обычные объекты без пользовательских прототипов. Это сохраняет совместимость с JSON/localStorage и позволяет движку формировать глубокие immutable snapshots.
 
 `GameEngine` — единственный владелец изменяемого состояния. Renderer получает только snapshot, выбранный объект и legal actions. PixiJS не участвует в расчёте правил.
+
+`names.json` и `NameGenerator` создают уникальные детерминированные имена кораблей и планет из `nameSeed`/`nameSequence`. В состояние также входят три независимых порога активации колонии: производство и ремонт доступны с текущего owner-turn, доход — со следующего. Публичные read-модели `getObjectsAt`, `getUnitHistory` и `getFactionEconomySnapshot` не раскрывают изменяемое состояние.
 
 ## Engine
 
@@ -42,6 +44,10 @@ src/engine/
 
 `AppController` связывает UI, GameEngine, Pixi renderer, AI, autosave и настройки. AI получает snapshot и legal action IDs, но не изменяет состояние напрямую.
 
+Right bar строится только из выбранного объекта. Он объединяет карточку параметров, верфь, разведку экономики, историю дружественного корабля или дневник вражеских рапортов. Техническая активность AI и художественный журнал событий находятся в отдельных DOM-диалогах; Pixi передаёт контроллеру только click/hover координаты сектора.
+
+AI сохраняет разделение decision/report. Решения штаба, закупок и корабля валидируются и исполняются до формирования соответствующего `AiReport`. Report-очередь имеет concurrency 1 и может выполняться параллельно следующему decision-запросу. Штабные и экономические рапорты хранятся в `commandReports`, корабельные — в `unitReports` и памяти корабля. Для каждой роли выбираются независимые decision/report модели, получаемые UI через `OllamaClient.listModels()` и `/api/tags`.
+
 ## Тесты
 
 Корневой `unit` зеркалирует исходные архитектурные границы:
@@ -54,7 +60,9 @@ unit/
 │   └── services/
 └── engine/
     ├── ai/
-    └── entities/
+    ├── entities/
+    ├── services/
+    └── ui/
 ```
 
 Новая игровая entity, service или renderer должна получать тест в соответствующей зеркальной папке.

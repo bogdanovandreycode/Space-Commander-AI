@@ -288,6 +288,11 @@ export class GameEngine {
 
     const ship = this.getShip(action.unitId);
     const from = [ship.x, ship.y];
+    const targetEntity = action.targetUnitId
+      ? this.getShip(action.targetUnitId)
+      : action.planetId
+        ? this.getPlanet(action.planetId)
+        : null;
     let damageDealt = 0;
     let targetDestroyed = false;
     let colonizedPlanetId = null;
@@ -346,6 +351,8 @@ export class GameEngine {
       actionType: action.type,
       actionId: action.id,
       unitId: action.unitId,
+      unitName: ship.name,
+      targetName: targetEntity?.name ?? null,
       from,
       to: action.to,
       targetDestroyed,
@@ -402,7 +409,10 @@ export class GameEngine {
       actionType: ACTION_TYPES.BUILD,
       actionId: action.id,
       unitId: idForShip,
+      unitName: name,
       planetId: planet.id,
+      planetName: planet.name,
+      to: [planet.x, planet.y],
       unitType: action.unitType,
       cost: definition.cost,
       reasonCode: 'SUCCESS',

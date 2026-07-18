@@ -54,53 +54,93 @@ export class MultiAgentTurnOrchestrator {
     }
 
     const headquartersAgent = new HeadquartersAgent(this.client, this.settings);
+    const reserveHeadquartersAgent = new HeadquartersAgent(this.client, {
+      ...this.settings,
+      headquartersDecisionModel: this.settings.headquartersFallbackModel,
+      headquartersThink: false,
+      headquartersTemperature: 0,
+    }, 'headquarters-fallback');
     const procurementAgent = new ProcurementAgent(this.client, this.settings);
     const unitAgent = new UnitAgent(this.client, this.settings);
     const headquartersReportAgent = new ReportAgent(this.client, this.settings, 'headquarters');
     const procurementReportAgent = new ReportAgent(this.client, this.settings, 'procurement');
     const unitReportAgent = new ReportAgent(this.client, this.settings, 'unit');
 
-    let headquartersPlan;
-    try {
-      this.onActivity({ stage: 'headquarters', message: 'Штаб анализирует карту…' });
-      const before = this.engine.getSnapshot();
-      const aiUnits = before.ships.filter((ship) => ship.faction === faction && !ship.hasActed);
-      const operationalOptions = aiUnits.map((unit) => ({
+    const before = this.engine.getSnapshot();
+    const aiUnits = before.ships.filter((ship) => ship.faction === faction && !ship.hasActed);
+    const headquartersRequest = {
+      protocolVersion: 1,
+      faction,
+      compactRules: buildCompactRules(this.engine.configs),
+      currentWorld: buildGlobalContext(this.engine, faction),
+      operationalOptions: aiUnits.map((unit) => ({
         unitId: unit.id,
         legalActions: this.engine.generateLegalActionsForUnit(unit.id).map(compactAction),
-      }));
-      headquartersPlan = await headquartersAgent.decide({
-        protocolVersion: 1,
-        faction,
-        compactRules: buildCompactRules(this.engine.configs),
-        currentWorld: buildGlobalContext(this.engine, faction),
-        operationalOptions,
-        requiredOutput: {
-          doctrine: 'string',
-          commanderComment: 'short string',
-          strategicRationale: 'short explanation',
-          priorities: [],
-          unitRecommendations: [],
-          executionOrder: ['integer unit IDs'],
-          procurementDirective: {},
-        },
-      }, aiUnits, before.planets, before.factions[faction].credits);
+      })),
+      requiredOutput: {
+        doctrine: 'string',
+        commanderComment: 'short string',
+        strategicRationale: 'short explanation',
+        priorities: [],
+        unitRecommendations: [],
+        executionOrder: ['integer unit IDs'],
+        procurementDirective: {},
+      },
+    };
+    let headquartersPlan;
+    let headquartersMode = 'primary';
+    try {
+      this.onActivity({ stage: 'headquarters', message: 'Штаб анализирует карту…' });
+      headquartersPlan = await headquartersAgent.decide(
+        headquartersRequest,
+        aiUnits,
+        before.planets,
+        before.factions[faction].credits,
+      );
+    } catch (primaryError) {
+      headquartersMode = 'reserve';
+      this.onActivity({
+        stage: 'headquarters-timeout',
+        message: `${this.#errorMessage(primaryError)} Запускается резервный штаб без reasoning…`,
+      });
+      try {
+        this.onActivity({
+          stage: 'headquarters-fallback',
+          message: 'Резервный штаб принимает командование без reasoning…',
+        });
+        headquartersPlan = await reserveHeadquartersAgent.decide(
+          headquartersRequest,
+          aiUnits,
+          before.planets,
+          before.factions[faction].credits,
+        );
+      } catch (reserveError) {
+        headquartersMode = 'decentralized';
+        headquartersPlan = this.#createDecentralizedPlan(
+          aiUnits,
+          before.factions[faction].credits,
+          primaryError,
+          reserveError,
+        );
+        this.onActivity({
+          stage: 'headquarters-offline',
+          message: 'Связь со штабом потеряна. Корабли действуют самостоятельно по обстановке.',
+        });
+        this.#saveOfflineHeadquartersReport(faction, headquartersPlan);
+      }
+    }
+
+    if (headquartersMode !== 'decentralized') {
       this.#queueCommandReport(headquartersReportAgent, 'headquarters', faction, {
         locale: this.locale,
         factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
         currentWorld: buildGlobalContext(this.engine, faction),
+        commandSource: headquartersMode,
         validatedDecision: headquartersPlan,
       });
-    } catch (error) {
-      this.onActivity({ stage: 'error', message: this.#errorMessage(error) });
-      if (this.settings.fallbackEnabled) {
-        await this.fallback.runTurn(faction);
-        return { mode: 'fallback', error, events: [...this.turnEvents] };
-      }
-      await this.#waitAllUnits(faction);
-      return { mode: 'safe-wait', error, events: [...this.turnEvents] };
+      // Let the serialized report queue start before the next independent decision request.
+      await Promise.resolve();
     }
-
     await this.#runProcurement(
       procurementAgent,
       procurementReportAgent,
@@ -126,7 +166,12 @@ export class MultiAgentTurnOrchestrator {
       stage: 'complete',
       message: headquartersPlan.commanderComment || 'Ход флота завершён.',
     });
-    return { mode: 'ollama', headquartersPlan, events: [...this.turnEvents] };
+    return {
+      mode: 'ollama',
+      headquartersMode,
+      headquartersPlan,
+      events: [...this.turnEvents],
+    };
   }
 
   async #runProcurement(agent, reportAgent, headquartersPlan, faction) {
@@ -149,6 +194,7 @@ export class MultiAgentTurnOrchestrator {
         credits: snapshot.factions[faction].credits,
         economy,
         headquartersDirective: headquartersPlan.procurementDirective,
+        commandLinkStatus: headquartersPlan.decentralized ? 'OFFLINE' : 'ONLINE',
         repairIntentions,
         legalPurchases,
         requiredOutput: {
@@ -214,6 +260,7 @@ export class MultiAgentTurnOrchestrator {
           hp: unit.hp,
         },
         headquartersRecommendation: recommendation,
+        commandLinkStatus: headquartersPlan.decentralized ? 'OFFLINE' : 'ONLINE',
         localTacticalState: buildLocalTacticalContext(
           this.engine,
           unit.id,
@@ -291,15 +338,41 @@ export class MultiAgentTurnOrchestrator {
     }
   }
 
-  async #waitAllUnits(faction) {
-    const units = this.engine.getSnapshot().ships.filter(
-      (ship) => ship.faction === faction && !ship.hasActed,
-    );
-    for (const unit of units) {
-      const wait = this.engine.generateLegalActionsForUnit(unit.id)
-        .find((action) => action.type === ACTION_TYPES.WAIT);
-      if (wait) this.onEvent(this.engine.executeUnitAction(wait));
-    }
+  #createDecentralizedPlan(units, credits, primaryError, reserveError) {
+    return {
+      doctrine: 'DECENTRALIZED_OPERATIONS',
+      commanderComment: 'Корабли завершили ход без связи со штабом.',
+      rationale: 'Основной и резервный штабные каналы недоступны; капитаны оценивают обстановку самостоятельно.',
+      priorities: [],
+      unitRecommendations: [],
+      executionOrder: units.map((unit) => unit.id).sort((a, b) => a - b),
+      procurementDirective: {
+        goal: 'LOCAL_TACTICAL_BALANCE',
+        maxSpend: credits,
+        minimumReserve: 0,
+        desiredFleetChanges: {},
+        avoidPlanetIds: [],
+        preferredPlanetIds: [],
+      },
+      decentralized: true,
+      communicationErrors: {
+        primary: primaryError?.message ?? String(primaryError),
+        reserve: reserveError?.message ?? String(reserveError),
+      },
+    };
+  }
+
+  #saveOfflineHeadquartersReport(faction, plan) {
+    if (!this.settings.reportsEnabled) return;
+    const report = this.engine.saveCommandReport('headquarters', {
+      faction,
+      round: this.engine.getSnapshot().round,
+      status: 'FAILED',
+      title: 'Связь со штабом потеряна',
+      narrative: 'Основной и резервный командные каналы не ответили. Капитаны получили право действовать самостоятельно по фактической обстановке в своих секторах.',
+      rationale: plan.rationale,
+    });
+    this.onEvent({ eventType: 'COMMAND_REPORT', role: 'headquarters', report });
   }
 
   #orderFit(action, recommendation) {

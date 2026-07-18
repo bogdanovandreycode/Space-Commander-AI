@@ -2,6 +2,7 @@
  * @typedef {Object} AiSettings
  * @property {string} ollamaUrl
  * @property {string} headquartersDecisionModel
+ * @property {string} headquartersFallbackModel
  * @property {string} headquartersReportModel
  * @property {string} procurementDecisionModel
  * @property {string} procurementReportModel

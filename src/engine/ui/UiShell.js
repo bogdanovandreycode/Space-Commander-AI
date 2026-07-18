@@ -4,6 +4,7 @@ import { renderMarkdown } from './renderMarkdown.js';
 
 const MODEL_FIELDS = [
   ['headquartersDecisionModel', 'HQ · decision'],
+  ['headquartersFallbackModel', 'HQ · reserve (think off)'],
   ['headquartersReportModel', 'HQ · report'],
   ['procurementDecisionModel', 'Procurement · decision'],
   ['procurementReportModel', 'Procurement · report'],
@@ -545,24 +546,26 @@ export class UiShell {
   #eventText(event, snapshot) {
     const details = event.details ?? event.actualResult ?? event;
     const ship = snapshot.ships.find((item) => item.id === (details.unitId ?? details.createdUnitId));
-    const shipName = ship?.name ?? `${this.t.ship} #${details.unitId ?? details.createdUnitId ?? '?'}`;
+    const shipName = details.unitName
+      ?? ship?.name
+      ?? `${this.t.ship} #${details.unitId ?? details.createdUnitId ?? '?'}`;
     if (event.type === 'SHIP_DEPLOYED') {
-      return `${shipName} ${this.locale === 'ru' ? 'введён в строй в секторе' : 'was commissioned in sector'} ${this.#sector(details)}.`;
+      return `${shipName} ${this.locale === 'ru' ? 'введён в строй в секторе' : 'was commissioned in sector'} [${details.to?.join(':')}].`;
     }
     if (event.type === 'PURCHASE' || details.actionType === 'BUILD') {
       const planet = snapshot.planets.find((item) => item.id === details.planetId);
-      return `${shipName} ${this.locale === 'ru' ? 'построен на верфи' : 'was built at'} ${planet?.name ?? ''} ${planet ? this.#sector(planet) : ''}.`;
+      return `${shipName} ${this.locale === 'ru' ? 'построен на верфи' : 'was built at'} ${details.planetName ?? planet?.name ?? ''} ${planet ? this.#sector(planet) : `[${details.to?.join(':')}]`}.`;
     }
     if (event.type === 'UNIT_ACTION') {
       if (details.actionType === 'MOVE') {
         return `${shipName}: ${this.locale === 'ru' ? 'переход из сектора' : 'transit from sector'} [${details.from?.join(':')}] ${this.locale === 'ru' ? 'в' : 'to'} [${details.to?.join(':')}].`;
       }
       if (details.actionType?.startsWith('ATTACK')) {
-        return `${shipName} ${this.locale === 'ru' ? 'открыл огонь в секторе' : 'opened fire in sector'} [${details.to?.join(':')}], ${this.locale === 'ru' ? 'урон' : 'damage'} ${details.damageDealt}.`;
+        return `${shipName} ${this.locale === 'ru' ? 'открыл огонь по цели' : 'opened fire on'} ${details.targetName ?? ''} ${this.locale === 'ru' ? 'в секторе' : 'in sector'} [${details.to?.join(':')}], ${this.locale === 'ru' ? 'урон' : 'damage'} ${details.damageDealt}.`;
       }
       if (details.actionType === 'COLONIZE') {
         const planet = snapshot.planets.find((item) => item.id === details.colonizedPlanetId);
-        return `${shipName} ${this.locale === 'ru' ? 'завершил колонизацию мира' : 'completed colonization of'} ${planet?.name ?? ''} ${planet ? this.#sector(planet) : ''}.`;
+        return `${shipName} ${this.locale === 'ru' ? 'завершил колонизацию мира' : 'completed colonization of'} ${details.targetName ?? planet?.name ?? ''} ${planet ? this.#sector(planet) : `[${details.to?.join(':')}]`}.`;
       }
       if (details.actionType === 'WAIT') return `${shipName} ${this.locale === 'ru' ? 'удерживал позицию' : 'held position'}.`;
     }

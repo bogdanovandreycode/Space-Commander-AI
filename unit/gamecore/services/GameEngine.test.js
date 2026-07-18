@@ -93,16 +93,19 @@ describe('GameEngine baseline mechanics', () => {
       type: 'cryos_colony',
       faction: 'cryos',
       hp: 45,
-      readyFromOwnerTurn: 2,
+      productionReadyFromOwnerTurn: 1,
+      repairReadyFromOwnerTurn: 1,
+      incomeReadyFromOwnerTurn: 2,
     });
     expect(state.factions.cryos.credits).toBe(beforeCredits);
     expect(
       engine.generateLegalPurchaseActions('cryos').some((item) => item.planetId === 3),
-    ).toBe(false);
+    ).toBe(true);
     engine.endFactionTurn();
     engine.endFactionTurn();
     state = engine.getSnapshot();
     expect(state.factions.cryos.credits).toBe(beforeCredits + 20);
+    expect(state.planets.find((planet) => planet.id === 3).hp).toBe(51);
     expect(
       engine.generateLegalPurchaseActions('cryos').some((item) => item.planetId === 3),
     ).toBe(true);
@@ -200,5 +203,53 @@ describe('GameEngine baseline mechanics', () => {
     expect(restored.restore(save)).toEqual(engine.getSnapshot());
     save.saveVersion = 99;
     expect(() => restored.restore(save)).toThrow('INCOMPATIBLE_SAVE_VERSION');
+  });
+
+  it('assigns unique stable names and migrates legacy save fields without changing saveVersion 1', () => {
+    const names = [
+      ...engine.getSnapshot().ships.map((item) => item.name),
+      ...engine.getSnapshot().planets.map((item) => item.name),
+    ];
+    expect(new Set(names).size).toBe(names.length);
+
+    const legacy = engine.serialize();
+    delete legacy.state.nameSeed;
+    delete legacy.state.nameSequence;
+    delete legacy.state.commandReports;
+    for (const entity of [...legacy.state.ships, ...legacy.state.planets]) delete entity.name;
+    for (const planet of legacy.state.planets) {
+      planet.readyFromOwnerTurn = 1;
+      delete planet.productionReadyFromOwnerTurn;
+      delete planet.repairReadyFromOwnerTurn;
+      delete planet.incomeReadyFromOwnerTurn;
+    }
+    const first = GameEngine.create(configs);
+    const second = GameEngine.create(configs);
+    first.restore(structuredClone(legacy));
+    second.restore(structuredClone(legacy));
+    expect(first.serialize().saveVersion).toBe(1);
+    expect(first.getSnapshot().ships.map((item) => item.name))
+      .toEqual(second.getSnapshot().ships.map((item) => item.name));
+    expect(first.getSnapshot().planets.every((item) => Number.isInteger(item.productionReadyFromOwnerTurn))).toBe(true);
+    expect(first.getSnapshot().planets.filter((item) => item.faction !== 'grey').every(
+      (item) => item.productionReadyFromOwnerTurn <= first.getSnapshot().factions[item.faction].ownerTurns,
+    )).toBe(true);
+  });
+
+  it('returns objects, ship history, and complete faction economy snapshots', () => {
+    expect(engine.getObjectsAt(0, 0).map((item) => item.kind)).toEqual(['planet']);
+    replaceShips(engine, [ship(1, 'fighter', 'cryos', 1, 0)]);
+    const move = engine.generateLegalActionsForUnit(1).find((action) => action.to?.join() === '1,1');
+    expect(engine.executeUnitAction(move).executed).toBe(true);
+    const history = engine.getUnitHistory(1);
+    expect(history.some((event) => event.type === 'UNIT_ACTION')).toBe(true);
+    const economy = engine.getFactionEconomySnapshot('cryos');
+    expect(economy).toMatchObject({
+      credits: 25,
+      planetCount: 1,
+      fleetCount: 1,
+      fleetValue: 15,
+      fleetComposition: { fighter: 1 },
+    });
   });
 });

@@ -6,11 +6,18 @@ import {
 
 describe('AiSettingsEntity', () => {
   it('applies application defaults without mutating the shared template', () => {
-    const settings = createAiSettingsEntity({ unitModel: 'custom:latest', language: 'en' });
+    const settings = createAiSettingsEntity({
+      unitModel: 'custom:latest',
+      reportModel: 'writer:latest',
+      language: 'en',
+    });
 
-    expect(settings.unitModel).toBe('custom:latest');
+    expect(settings.unitDecisionModel).toBe('custom:latest');
+    expect(settings.unitReportModel).toBe('writer:latest');
+    expect(settings.headquartersReportModel).toBe('writer:latest');
     expect(settings.language).toBe('en');
     expect(settings.timeoutMs).toBe(120000);
-    expect(DEFAULT_AI_SETTINGS.unitModel).toBe('gemma3:4b');
+    expect(settings).not.toHaveProperty('unitModel');
+    expect(DEFAULT_AI_SETTINGS.unitDecisionModel).toBe('gemma3:4b');
   });
 });

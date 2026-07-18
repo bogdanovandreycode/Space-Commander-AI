@@ -121,13 +121,16 @@ export class AppController {
       );
       if (action) {
         this.#setBusy(true);
-        const result = this.engine.executeUnitAction(action);
-        this.ui.addEvent(result);
-        await this.renderer.playAction(result);
-        this.selection = null;
-        this.#autosave();
-        this.#refresh();
-        this.#setBusy(false);
+        try {
+          const result = this.engine.executeUnitAction(action);
+          this.ui.addEvent(result);
+          await this.renderer.playAction(result);
+          this.selection = null;
+          this.#autosave();
+          this.#refresh();
+        } finally {
+          this.#setBusy(false);
+        }
         return;
       }
     }
@@ -164,18 +167,26 @@ export class AppController {
 
   async build(actionId) {
     if (this.busy || !this.engine) return;
-    const result = this.engine.executePurchaseAction(actionId);
-    if (!result.executed) {
-      this.ui.showError(this.locale === 'ru' ? 'Покупка больше недоступна.' : 'Purchase is no longer available.');
-      return;
+    this.#setBusy(true);
+    try {
+      const result = this.engine.executePurchaseAction(actionId);
+      if (!result.executed) {
+        this.ui.showError(this.locale === 'ru' ? 'Покупка больше недоступна.' : 'Purchase is no longer available.');
+        return;
+      }
+      this.ui.addEvent(result);
+      await this.renderer.playAction({
+        ...result,
+        to: [
+          this.engine.getPlanet(result.planetId).x,
+          this.engine.getPlanet(result.planetId).y,
+        ],
+      });
+      this.#autosave();
+      this.#refresh();
+    } finally {
+      this.#setBusy(false);
     }
-    this.ui.addEvent(result);
-    await this.renderer.playAction({ ...result, to: [
-      this.engine.getPlanet(result.planetId).x,
-      this.engine.getPlanet(result.planetId).y,
-    ] });
-    this.#autosave();
-    this.#refresh();
   }
 
   saveSettings(settings) {
@@ -222,6 +233,7 @@ export class AppController {
     try {
       const result = await client.testConnection([
         merged.headquartersDecisionModel,
+        merged.headquartersFallbackModel,
         merged.headquartersReportModel,
         merged.procurementDecisionModel,
         merged.procurementReportModel,

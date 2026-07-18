@@ -1,6 +1,7 @@
 export const DEFAULT_AI_SETTINGS = Object.freeze({
   ollamaUrl: 'http://localhost:11434',
   headquartersDecisionModel: 'deepseek-r1:8b',
+  headquartersFallbackModel: 'gemma3:4b',
   headquartersReportModel: 'gemma3:4b',
   procurementDecisionModel: 'gemma3:4b',
   procurementReportModel: 'gemma3:4b',
@@ -40,6 +41,8 @@ export function createAiSettingsEntity(overrides = {}) {
     headquartersDecisionModel: source.headquartersDecisionModel
       ?? source.headquartersModel
       ?? DEFAULT_AI_SETTINGS.headquartersDecisionModel,
+    headquartersFallbackModel: source.headquartersFallbackModel
+      ?? DEFAULT_AI_SETTINGS.headquartersFallbackModel,
     headquartersReportModel: source.headquartersReportModel
       ?? source.reportModel
       ?? DEFAULT_AI_SETTINGS.headquartersReportModel,
