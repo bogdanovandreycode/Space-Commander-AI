@@ -8,7 +8,8 @@ export class OllamaClient {
   constructor(settings, diagnostics, fetchImpl = globalThis.fetch) {
     this.settings = settings;
     this.diagnostics = diagnostics;
-    this.fetchImpl = fetchImpl;
+    if (typeof fetchImpl !== 'function') throw new Error('FETCH_UNAVAILABLE');
+    this.fetchImpl = fetchImpl.bind(globalThis);
   }
 
   updateSettings(settings) {

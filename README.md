@@ -22,7 +22,7 @@ npm run test
 npm run build
 ```
 
-Vite собирает приложение непосредственно в `public`. OSPanel уже настроен на эту папку.
+Vite собирает приложение непосредственно в `public`. OSPanel уже настроен на эту папку. Полная инструкция по production-сборке и настройке Ollama находится в [DEPLOY.md](DEPLOY.md).
 Исходная HTML-точка входа находится в `src/index.html`; корневой `index.html` не используется.
 
 ## Ollama
@@ -32,7 +32,7 @@ Vite собирает приложение непосредственно в `pu
 - штаб: `deepseek-r1:8b`;
 - корабли, закупки и рапорты: `gemma3:4b`.
 
-Origin игры необходимо разрешить в Ollama, например через `OLLAMA_ORIGINS=https://space-commander.local`. URL, модели, таймауты и параметры генерации меняются в Settings. Если Ollama недоступна, игра использует детерминированный fallback.
+Origin игры необходимо разрешить в Ollama через `OLLAMA_ORIGINS=https://space-commander.local`, после чего полностью перезапустить процесс Ollama. Иначе запрос `/api/tags` получит `403 Forbidden`. Точные команды для Windows и проверка через `curl.exe` приведены в [DEPLOY.md](DEPLOY.md). URL, модели, таймауты и параметры генерации меняются в Settings. Если Ollama недоступна, игра использует детерминированный fallback.
 
 ## Архитектура
 
