@@ -176,21 +176,21 @@ describe('AI validation and fallback', () => {
     expect(engine.getSnapshot().ships.find((ship) => ship.faction === 'ignis').hasActed).toBe(true);
   });
 
-  it('runs independent decision/report stages with serialized artistic reports and enemy economy', async () => {
+  it('runs every decision, action, and report strictly in sequence with explicit Russian objectives', async () => {
     const engine = GameEngine.create(loadGameConfigs(), { humanFaction: 'cryos', nameSeed: 9 });
     engine.endFactionTurn();
     const calls = [];
-    let activeReports = 0;
-    let maximumConcurrentReports = 0;
+    let activeRequests = 0;
+    let maximumConcurrentRequests = 0;
     const client = {
       updateSettings: vi.fn(),
       chat: vi.fn(async ({ role, payload }) => {
+        activeRequests += 1;
+        maximumConcurrentRequests = Math.max(maximumConcurrentRequests, activeRequests);
         calls.push({ role, payload });
         if (role.endsWith('-report')) {
-          activeReports += 1;
-          maximumConcurrentReports = Math.max(maximumConcurrentReports, activeReports);
           await new Promise((resolve) => setTimeout(resolve, 2));
-          activeReports -= 1;
+          activeRequests -= 1;
           return {
             data: {
               status: 'SUCCESS',
@@ -201,6 +201,7 @@ describe('AI validation and fallback', () => {
           };
         }
         if (role === 'headquarters') {
+          activeRequests -= 1;
           return {
             data: {
               doctrine: 'BALANCED_OPERATIONS',
@@ -213,6 +214,7 @@ describe('AI validation and fallback', () => {
           };
         }
         if (role === 'procurement') {
+          activeRequests -= 1;
           return {
             data: {
               purchaseActionIds: [],
@@ -222,6 +224,7 @@ describe('AI validation and fallback', () => {
           };
         }
         const wait = payload.legalActions.find((action) => action.type === 'WAIT');
+        activeRequests -= 1;
         return {
           data: {
             actionId: wait.id,
@@ -246,15 +249,31 @@ describe('AI validation and fallback', () => {
     expect(roles).toContain('headquarters-report');
     expect(roles).toContain('procurement-report');
     expect(roles).toContain('unit-report');
+    expect(roles).toEqual([
+      'headquarters',
+      'procurement',
+      'procurement-report',
+      'unit',
+      'unit-report',
+      'headquarters-report',
+    ]);
     expect(roles.indexOf('headquarters')).toBeLessThan(roles.indexOf('headquarters-report'));
     expect(roles.indexOf('procurement')).toBeLessThan(roles.indexOf('procurement-report'));
     expect(roles.indexOf('unit')).toBeLessThan(roles.indexOf('unit-report'));
-    expect(maximumConcurrentReports).toBe(1);
+    expect(maximumConcurrentRequests).toBe(1);
+    expect(calls.every((call) => call.payload.requestedLanguage === 'Russian')).toBe(true);
+    expect(calls.find((call) => call.role === 'headquarters').payload.strategicObjectives)
+      .toHaveProperty('victoryCondition', 'OPPONENT_CONTROLS_ZERO_PLANETS');
+    expect(calls.find((call) => call.role === 'unit').payload.missionProfile)
+      .toMatchObject({
+        semanticClass: 'COLONY_SHIP',
+        missionObjective: expect.stringContaining('COLONIZE_A_NEUTRAL_PLANET'),
+      });
     const procurement = calls.find((call) => call.role === 'procurement');
     expect(procurement.payload.economy).toHaveProperty('own');
     expect(procurement.payload.economy).toHaveProperty('enemy');
     expect(engine.getSnapshot().commandReports.map((report) => report.role))
-      .toEqual(['headquarters', 'procurement']);
+      .toEqual(['procurement', 'headquarters']);
     expect(engine.getSnapshot().unitReports[0]).toMatchObject({
       role: 'unit',
       title: 'unit-report title',

@@ -9,15 +9,20 @@ export class HeadquartersAgent {
   }
 
   async decide(payload, units, planets, credits) {
+    const think = Boolean(this.settings.headquartersThink);
     const response = await this.client.chat({
       role: this.role,
       model: this.settings.headquartersDecisionModel,
       system: HEADQUARTERS_PROMPT,
       payload,
-      think: this.settings.headquartersThink,
+      think,
       temperature: this.settings.headquartersTemperature,
-      numPredict: this.settings.headquartersNumPredict,
-      contextSize: this.settings.headquartersContextSize,
+      numPredict: think
+        ? this.settings.headquartersNumPredict
+        : Math.min(this.settings.headquartersNumPredict, 900),
+      contextSize: think
+        ? this.settings.headquartersContextSize
+        : Math.min(this.settings.headquartersContextSize, 8192),
     });
     return validateHeadquartersPlan(response.data, units, planets, credits);
   }

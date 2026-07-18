@@ -41,7 +41,14 @@ export function validateGameConfigs(configs) {
       configs.aiSemantics.unitSemantics[type]?.semanticClass === ship.semanticClass,
       `${type}: AI semanticClass расходится с ships.json`,
     );
+    assert(
+      configs.aiSemantics.unitSemantics[type]?.missionObjective,
+      `${type}: не задана цель AI-юнита`,
+    );
   }
+  assert(configs.aiSemantics.strategicObjectives?.faction, 'не задана общая цель AI');
+  assert(configs.aiSemantics.strategicObjectives?.headquarters, 'не задана цель штаба');
+  assert(configs.aiSemantics.strategicObjectives?.procurement, 'не задана цель экономики');
 
   const planetEntries = Object.entries(configs.planets.planetTypes ?? {});
   assert(planetEntries.length >= 3, 'нет обязательных типов планет');

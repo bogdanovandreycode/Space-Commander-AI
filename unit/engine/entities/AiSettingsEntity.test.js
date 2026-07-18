@@ -30,4 +30,13 @@ describe('AiSettingsEntity', () => {
     expect(settings.headquartersDecisionModel).toBe('reasoner:latest');
     expect(settings.headquartersFallbackModel).toBe('fast:latest');
   });
+
+  it('migrates the old default report budget while preserving custom budgets', () => {
+    expect(createAiSettingsEntity({ reportNumPredict: 180 }).reportNumPredict).toBe(500);
+    expect(createAiSettingsEntity({ reportNumPredict: 260 }).reportNumPredict).toBe(260);
+    expect(createAiSettingsEntity({
+      settingsSchemaVersion: 2,
+      reportNumPredict: 180,
+    }).reportNumPredict).toBe(180);
+  });
 });

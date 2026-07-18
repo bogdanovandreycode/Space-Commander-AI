@@ -1,4 +1,5 @@
 export const DEFAULT_AI_SETTINGS = Object.freeze({
+  settingsSchemaVersion: 2,
   ollamaUrl: 'http://localhost:11434',
   headquartersDecisionModel: 'deepseek-r1:8b',
   headquartersFallbackModel: 'gemma3:4b',
@@ -15,7 +16,7 @@ export const DEFAULT_AI_SETTINGS = Object.freeze({
   headquartersNumPredict: 2400,
   procurementNumPredict: 500,
   unitNumPredict: 400,
-  reportNumPredict: 180,
+  reportNumPredict: 500,
   headquartersContextSize: 16384,
   procurementContextSize: 8192,
   unitContextSize: 8192,
@@ -58,6 +59,9 @@ export function createAiSettingsEntity(overrides = {}) {
     unitReportModel: source.unitReportModel
       ?? source.reportModel
       ?? DEFAULT_AI_SETTINGS.unitReportModel,
+    reportNumPredict: source.settingsSchemaVersion == null && source.reportNumPredict === 180
+      ? DEFAULT_AI_SETTINGS.reportNumPredict
+      : (source.reportNumPredict ?? DEFAULT_AI_SETTINGS.reportNumPredict),
   };
   for (const legacyKey of ['headquartersModel', 'procurementModel', 'unitModel', 'reportModel']) {
     delete settings[legacyKey];

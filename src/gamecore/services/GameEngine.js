@@ -572,6 +572,7 @@ export class GameEngine {
       if (report.status === 'SUCCESS') ship.aiMemory.missionsCompleted += 1;
     }
     this.#touch();
+    return clone(stored);
   }
 
   saveCommandReport(role, report) {

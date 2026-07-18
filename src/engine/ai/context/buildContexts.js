@@ -40,7 +40,40 @@ export function buildCompactRules(configs) {
     typeKey,
     semanticClass: ship.semanticClass,
     compactRule: configs.aiSemantics.unitSemantics[typeKey].compactRule,
+    missionObjective: configs.aiSemantics.unitSemantics[typeKey].missionObjective,
+    strategicTags: configs.aiSemantics.unitSemantics[typeKey].strategicTags,
+    primaryUses: ship.ai?.primaryUses ?? [],
+    priorityTargets: ship.ai?.priorityTargets ?? [],
+    forbiddenUses: ship.ai?.forbiddenUses ?? [],
+    avoidDirectEngagementWith: ship.ai?.avoidDirectEngagementWith ?? [],
+    avoidChasing: ship.ai?.avoidChasing ?? [],
+    requiresEscort: Boolean(ship.ai?.requiresEscort),
   }));
+}
+
+export function buildStrategicObjectives(configs) {
+  return {
+    victoryCondition: configs.gameRules.victory.baselineCondition,
+    ...configs.aiSemantics.strategicObjectives,
+  };
+}
+
+export function buildUnitMission(configs, typeKey) {
+  const ship = configs.ships.ships[typeKey];
+  const semantics = configs.aiSemantics.unitSemantics[typeKey];
+  return {
+    factionObjective: configs.aiSemantics.strategicObjectives.faction,
+    typeKey,
+    semanticClass: ship.semanticClass,
+    role: ship.role,
+    missionObjective: semantics.missionObjective,
+    primaryUses: ship.ai?.primaryUses ?? [],
+    priorityTargets: ship.ai?.priorityTargets ?? [],
+    forbiddenUses: ship.ai?.forbiddenUses ?? [],
+    avoidDirectEngagementWith: ship.ai?.avoidDirectEngagementWith ?? [],
+    avoidChasing: ship.ai?.avoidChasing ?? [],
+    requiresEscort: Boolean(ship.ai?.requiresEscort),
+  };
 }
 
 export function buildGlobalContext(engine, faction) {

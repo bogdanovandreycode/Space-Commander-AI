@@ -130,7 +130,7 @@ export function validateReport(value, role = 'unit') {
       ? value.status
       : 'PARTIAL',
     title: text(value.title, 120) || 'Оперативный рапорт',
-    narrative: text(value.narrative ?? value.report, 900) || 'Операция завершена.',
-    rationale: text(value.rationale, 500),
+    narrative: text(value.narrative ?? value.report, 1800) || 'Операция завершена.',
+    rationale: text(value.rationale, 800),
   };
 }

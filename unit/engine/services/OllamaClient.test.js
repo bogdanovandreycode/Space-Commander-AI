@@ -59,4 +59,33 @@ describe('OllamaClient', () => {
     await vi.advanceTimersByTimeAsync(20);
     await pending;
   });
+
+  it('retries an invalid model response once with thinking disabled', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: { content: 'not-json' }, done_reason: 'stop' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: { content: '{"actionId":7}' }, done_reason: 'stop' }),
+      });
+    const client = new OllamaClient(DEFAULT_AI_SETTINGS, null, fetchImpl);
+
+    const result = await client.chat({
+      role: 'unit',
+      model: 'gemma3:4b',
+      system: 'Choose an action.',
+      payload: { legalActions: [{ id: 7 }] },
+      think: true,
+      temperature: 0,
+      numPredict: 400,
+      contextSize: 4096,
+    });
+
+    expect(result.data).toEqual({ actionId: 7 });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const recoveryBody = JSON.parse(fetchImpl.mock.calls[1][1].body);
+    expect(recoveryBody.think).toBe(false);
+  });
 });

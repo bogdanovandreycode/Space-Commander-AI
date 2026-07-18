@@ -4,6 +4,8 @@ import {
   buildEconomicContext,
   buildGlobalContext,
   buildLocalTacticalContext,
+  buildStrategicObjectives,
+  buildUnitMission,
 } from './context/buildContexts.js';
 import { ClassicFallbackAi } from './ClassicFallbackAi.js';
 import { HeadquartersAgent } from './HeadquartersAgent.js';
@@ -33,7 +35,6 @@ export class MultiAgentTurnOrchestrator {
     this.locale = locale;
     this.fallback = new ClassicFallbackAi(engine, onEvent);
     this.turnEvents = [];
-    this.reportQueue = Promise.resolve();
   }
 
   updateSettings(settings) {
@@ -72,6 +73,8 @@ export class MultiAgentTurnOrchestrator {
     const headquartersRequest = {
       protocolVersion: 1,
       faction,
+      requestedLanguage: this.#requestedLanguage(),
+      strategicObjectives: buildStrategicObjectives(this.engine.configs),
       compactRules: buildCompactRules(this.engine.configs),
       currentWorld: buildGlobalContext(this.engine, faction),
       operationalOptions: aiUnits.map((unit) => ({
@@ -131,17 +134,6 @@ export class MultiAgentTurnOrchestrator {
       }
     }
 
-    if (headquartersMode !== 'decentralized') {
-      this.#queueCommandReport(headquartersReportAgent, 'headquarters', faction, {
-        locale: this.locale,
-        factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
-        currentWorld: buildGlobalContext(this.engine, faction),
-        commandSource: headquartersMode,
-        validatedDecision: headquartersPlan,
-      });
-      // Let the serialized report queue start before the next independent decision request.
-      await Promise.resolve();
-    }
     await this.#runProcurement(
       procurementAgent,
       procurementReportAgent,
@@ -162,7 +154,18 @@ export class MultiAgentTurnOrchestrator {
       await this.#runUnit(unitAgent, unitReportAgent, unit, headquartersPlan);
     }
 
-    await this.reportQueue;
+    if (headquartersMode !== 'decentralized') {
+      await this.#createCommandReport(headquartersReportAgent, 'headquarters', faction, {
+        requestedLanguage: this.#requestedLanguage(),
+        factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
+        strategicObjectives: buildStrategicObjectives(this.engine.configs),
+        worldBeforeTurn: headquartersRequest.currentWorld,
+        worldAfterTurn: buildGlobalContext(this.engine, faction),
+        commandSource: headquartersMode,
+        validatedDecision: headquartersPlan,
+        turnEvents: [...this.turnEvents],
+      });
+    }
     this.onActivity({
       stage: 'complete',
       message: headquartersPlan.commanderComment || 'Ход флота завершён.',
@@ -192,6 +195,9 @@ export class MultiAgentTurnOrchestrator {
       decision = await agent.decide({
         protocolVersion: 1,
         faction,
+        requestedLanguage: this.#requestedLanguage(),
+        factionObjective: this.engine.configs.aiSemantics.strategicObjectives.faction,
+        procurementObjective: this.engine.configs.aiSemantics.strategicObjectives.procurement,
         credits: snapshot.factions[faction].credits,
         economy,
         headquartersDirective: headquartersPlan.procurementDirective,
@@ -206,9 +212,10 @@ export class MultiAgentTurnOrchestrator {
       }, legalPurchases, snapshot.factions[faction].credits, headquartersPlan.procurementDirective);
     } catch (error) {
       this.onActivity({ stage: 'procurement-error', message: 'Закупка пропущена: сохранены кредиты.' });
-      this.#queueCommandReport(reportAgent, 'procurement', faction, {
-        locale: this.locale,
+      await this.#createCommandReport(reportAgent, 'procurement', faction, {
+        requestedLanguage: this.#requestedLanguage(),
         factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
+        factionObjective: this.engine.configs.aiSemantics.strategicObjectives.faction,
         economy,
         validatedDecision: {
           purchaseActionIds: [],
@@ -229,9 +236,10 @@ export class MultiAgentTurnOrchestrator {
       actualPurchases.push(result);
       this.#pushEvent({ eventType: 'PURCHASE', actionId, actualResult: result });
     }
-    this.#queueCommandReport(reportAgent, 'procurement', faction, {
-      locale: this.locale,
+    await this.#createCommandReport(reportAgent, 'procurement', faction, {
+      requestedLanguage: this.#requestedLanguage(),
       factionLore: this.engine.configs.factions.factions[faction].loreKeywords,
+      factionObjective: this.engine.configs.aiSemantics.strategicObjectives.faction,
       economy,
       validatedDecision: decision,
       actualPurchases,
@@ -241,6 +249,12 @@ export class MultiAgentTurnOrchestrator {
 
   async #runUnit(agent, reportAgent, unit, headquartersPlan) {
     const recommendation = headquartersPlan.unitRecommendations.find((item) => item.unitId === unit.id);
+    const missionProfile = buildUnitMission(this.engine.configs, unit.type);
+    const preActionContext = buildLocalTacticalContext(
+      this.engine,
+      unit.id,
+      this.settings.tacticalRadius,
+    );
     let legalActions = this.engine.generateLegalActionsForUnit(unit.id)
       .map((action) => ({
         ...action,
@@ -253,6 +267,7 @@ export class MultiAgentTurnOrchestrator {
       decision = await agent.decide({
         protocolVersion: 1,
         faction: unit.faction,
+        requestedLanguage: this.#requestedLanguage(),
         identity: {
           unitId: unit.id,
           name: unit.name,
@@ -260,13 +275,10 @@ export class MultiAgentTurnOrchestrator {
           sector: [unit.x, unit.y],
           hp: unit.hp,
         },
+        missionProfile,
         headquartersRecommendation: recommendation,
         commandLinkStatus: headquartersPlan.decentralized ? 'OFFLINE' : 'ONLINE',
-        localTacticalState: buildLocalTacticalContext(
-          this.engine,
-          unit.id,
-          this.settings.tacticalRadius,
-        ),
+        localTacticalState: preActionContext,
         eventsEarlierThisTurn: this.turnEvents.slice(-20),
         legalActions,
       }, legalActions);
@@ -303,39 +315,51 @@ export class MultiAgentTurnOrchestrator {
     this.#pushEvent(event);
 
     if (this.settings.reportsEnabled && actualResult.executed) {
-      this.reportQueue = this.reportQueue.then(async () => {
-        try {
-          const report = await reportAgent.create({
-            locale: this.locale,
-            factionLore: this.engine.configs.factions.factions[unit.faction].loreKeywords,
-            unit: {
-              unitId: unit.id,
-              name: unit.name,
-              callsign: unit.aiMemory.callsign,
-              type: unit.type,
-              sector: [unit.x, unit.y],
-            },
-            headquartersRecommendation: recommendation,
-            decision,
-            actualResult,
-          });
-          this.engine.saveUnitReport(unit.id, {
-            round: this.engine.getSnapshot().round,
-            faction: unit.faction,
-            ...report,
-            order: recommendation,
-            result: actualResult,
-          });
-          this.onEvent({ eventType: 'UNIT_REPORT', unitId: unit.id, report });
-        } catch (error) {
-          const report = this.#fallbackReport('unit', { decision, actualResult }, error);
-          this.engine.saveUnitReport(unit.id, {
-            round: this.engine.getSnapshot().round,
-            faction: unit.faction,
-            ...report,
-          });
-        }
-      });
+      try {
+        const report = await reportAgent.create({
+          requestedLanguage: this.#requestedLanguage(),
+          factionLore: this.engine.configs.factions.factions[unit.faction].loreKeywords,
+          missionProfile,
+          unitBeforeAction: {
+            unitId: unit.id,
+            name: unit.name,
+            callsign: unit.aiMemory.callsign,
+            type: unit.type,
+            sector: [unit.x, unit.y],
+            hp: unit.hp,
+          },
+          tacticalSituationBeforeAction: preActionContext,
+          headquartersRecommendation: recommendation,
+          decision,
+          selectedAction: compactAction(selected),
+          actualResult,
+          unitAfterAction: this.engine.getSnapshot().ships.find((ship) => ship.id === unit.id) ?? null,
+          eventsEarlierThisTurn: this.turnEvents.slice(0, -1),
+        });
+        const stored = this.engine.saveUnitReport(unit.id, {
+          round: this.engine.getSnapshot().round,
+          faction: unit.faction,
+          ...report,
+          order: recommendation,
+          result: actualResult,
+        });
+        this.onEvent({ eventType: 'UNIT_REPORT', unitId: unit.id, report: stored });
+      } catch (error) {
+        const report = this.#fallbackReport('unit', {
+          missionProfile,
+          decision,
+          selectedAction: compactAction(selected),
+          actualResult,
+        }, error);
+        const stored = this.engine.saveUnitReport(unit.id, {
+          round: this.engine.getSnapshot().round,
+          faction: unit.faction,
+          ...report,
+          order: recommendation,
+          result: actualResult,
+        });
+        this.onEvent({ eventType: 'UNIT_REPORT', unitId: unit.id, report: stored });
+      }
     }
   }
 
@@ -388,22 +412,20 @@ export class MultiAgentTurnOrchestrator {
     this.onEvent(event);
   }
 
-  #queueCommandReport(agent, role, faction, payload) {
+  async #createCommandReport(agent, role, faction, payload) {
     if (!this.settings.reportsEnabled) return;
-    this.reportQueue = this.reportQueue.then(async () => {
-      let report;
-      try {
-        report = await agent.create(payload);
-      } catch (error) {
-        report = this.#fallbackReport(role, payload, error);
-      }
-      const stored = this.engine.saveCommandReport(role, {
-        faction,
-        round: this.engine.getSnapshot().round,
-        ...report,
-      });
-      this.onEvent({ eventType: 'COMMAND_REPORT', role, report: stored });
+    let report;
+    try {
+      report = await agent.create(payload);
+    } catch (error) {
+      report = this.#fallbackReport(role, payload, error);
+    }
+    const stored = this.engine.saveCommandReport(role, {
+      faction,
+      round: this.engine.getSnapshot().round,
+      ...report,
     });
+    this.onEvent({ eventType: 'COMMAND_REPORT', role, report: stored });
   }
 
   #fallbackReport(role, payload, error) {
@@ -413,17 +435,34 @@ export class MultiAgentTurnOrchestrator {
       unit: 'Бортовой журнал',
     };
     const decision = payload.validatedDecision ?? payload.decision ?? {};
+    const actualResult = payload.actualResult ?? {};
+    const actualPurchases = payload.actualPurchases ?? [];
+    const from = this.#formatSector(actualResult.from) ?? 'неизвестном';
+    const to = this.#formatSector(actualResult.to);
+    const unitAction = actualResult.actionType ?? payload.selectedAction?.type ?? 'WAIT';
     return {
       role,
       status: 'PARTIAL',
       title: titles[role],
       narrative: role === 'procurement'
-        ? `Экономический канал сохранил ${decision.reserveCredits ?? 'доступный'} резерв после проверки верфей.`
+        ? `Экономика сопоставила доступные кредиты, состав флотов и угрозы колониям. ${
+          actualPurchases.length
+            ? `Верфи выполнили подтверждённых заказов: ${actualPurchases.length}.`
+            : 'Новых корпусов не заказано: ресурсы сохранены для более подходящей стратегической задачи.'
+        } После решения в резерве осталось ${decision.reserveCredits ?? 'неуточнённое количество'} кредитов.`
         : role === 'unit'
-          ? `Корабль завершил действие в соответствии с подтверждённым результатом операции.`
-          : 'Штаб передал флоту проверенные приоритеты текущего цикла.',
+          ? `Задача корабля определена его целевым профилем. До действия он находился в секторе ${from}. Выполнено подтверждённое действие ${unitAction}${to ? ` с результатом в секторе ${to}` : ''}; нанесённый урон: ${actualResult.damageDealt ?? 0}, цель уничтожена: ${actualResult.targetDestroyed ? 'да' : 'нет'}. Результат зафиксирован без неподтверждённых последствий.`
+          : `Штаб оценил условие победы, состояние обеих экономик и соотношение флотов. Доктрина ${decision.doctrine ?? 'текущего цикла'} преобразована в ${decision.unitRecommendations?.length ?? 0} конкретных рекомендаций кораблям. За ход подтверждено событий: ${payload.turnEvents?.length ?? 0}. Следующий цикл должен развивать достигнутые результаты и не терять связь между экспансией, прикрытием и давлением на вражеские планеты.`,
       rationale: decision.rationale ?? error?.message ?? 'REPORT_MODEL_UNAVAILABLE',
     };
+  }
+
+  #requestedLanguage() {
+    return this.locale === 'ru' ? 'Russian' : 'English';
+  }
+
+  #formatSector(value) {
+    return Array.isArray(value) && value.length >= 2 ? `[${value[0]}:${value[1]}]` : null;
   }
 
   #errorMessage(error) {

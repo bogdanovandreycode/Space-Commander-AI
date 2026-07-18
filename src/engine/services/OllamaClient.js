@@ -40,22 +40,19 @@ export class OllamaClient {
 
     if ((!content || !String(content).trim()) && response?.done_reason === 'length') {
       retries = 1;
-      const recovery = await this.#request({
-        ...request,
-        think: false,
-        messages: [
-          {
-            role: 'system',
-            content: 'Return only the final JSON object required by the supplied protocol. Do not reason, explain, or use Markdown.',
-          },
-          { role: 'user', content: JSON.stringify(payload) },
-        ],
-        options: { ...request.options, temperature: 0, num_predict: Math.max(300, Math.min(numPredict, 600)) },
-      });
+      const recovery = await this.#request(this.#recoveryRequest(request, payload, numPredict));
       content = recovery?.message?.content;
     }
 
-    const data = parseModelJson(content);
+    let data;
+    try {
+      data = parseModelJson(content);
+    } catch (error) {
+      if (retries > 0) throw error;
+      retries = 1;
+      const recovery = await this.#request(this.#recoveryRequest(request, payload, numPredict));
+      data = parseModelJson(recovery?.message?.content);
+    }
     this.diagnostics?.record({
       role,
       model,
@@ -71,6 +68,25 @@ export class OllamaClient {
       },
     });
     return { data, raw: response };
+  }
+
+  #recoveryRequest(request, payload, numPredict) {
+    return {
+      ...request,
+      think: false,
+      messages: [
+        {
+          role: 'system',
+          content: 'Return exactly one valid JSON object required by the supplied protocol. Include no reasoning, explanation, or Markdown.',
+        },
+        { role: 'user', content: JSON.stringify(payload) },
+      ],
+      options: {
+        ...request.options,
+        temperature: 0,
+        num_predict: Math.max(300, Math.min(numPredict, 900)),
+      },
+    };
   }
 
   async testConnection(models = []) {
