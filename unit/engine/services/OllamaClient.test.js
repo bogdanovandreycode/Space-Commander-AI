@@ -71,12 +71,19 @@ describe('OllamaClient', () => {
         json: async () => ({ message: { content: '{"actionId":7}' }, done_reason: 'stop' }),
       });
     const client = new OllamaClient(DEFAULT_AI_SETTINGS, null, fetchImpl);
+    const responseSchema = {
+      type: 'object',
+      properties: { actionId: { type: 'integer' } },
+      required: ['actionId'],
+      additionalProperties: false,
+    };
 
     const result = await client.chat({
       role: 'unit',
       model: 'gemma3:4b',
       system: 'Choose an action.',
       payload: { legalActions: [{ id: 7 }] },
+      responseSchema,
       think: true,
       temperature: 0,
       numPredict: 400,
@@ -85,7 +92,12 @@ describe('OllamaClient', () => {
 
     expect(result.data).toEqual({ actionId: 7 });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const initialBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
     const recoveryBody = JSON.parse(fetchImpl.mock.calls[1][1].body);
+    expect(initialBody.format).toEqual(responseSchema);
+    expect(recoveryBody.format).toEqual(responseSchema);
     expect(recoveryBody.think).toBe(false);
+    expect(recoveryBody.messages[0].content).toContain('Choose an action.');
+    expect(recoveryBody.messages[0].content).toContain('Do not repeat');
   });
 });

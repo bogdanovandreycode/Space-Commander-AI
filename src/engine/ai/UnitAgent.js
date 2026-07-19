@@ -1,4 +1,5 @@
 import { UNIT_PROMPT } from './prompts/prompts.js';
+import { UNIT_RESPONSE_SCHEMA } from './responseSchemas.js';
 import { validateUnitDecision } from './validation/validators.js';
 
 export class UnitAgent {
@@ -13,6 +14,7 @@ export class UnitAgent {
       model: this.settings.unitDecisionModel,
       system: UNIT_PROMPT,
       payload,
+      responseSchema: UNIT_RESPONSE_SCHEMA,
       think: false,
       temperature: this.settings.unitTemperature,
       numPredict: this.settings.unitNumPredict,

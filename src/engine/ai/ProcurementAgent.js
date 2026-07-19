@@ -1,4 +1,5 @@
 import { PROCUREMENT_PROMPT } from './prompts/prompts.js';
+import { PROCUREMENT_RESPONSE_SCHEMA } from './responseSchemas.js';
 import { validateProcurementDecision } from './validation/validators.js';
 
 export class ProcurementAgent {
@@ -13,6 +14,7 @@ export class ProcurementAgent {
       model: this.settings.procurementDecisionModel,
       system: PROCUREMENT_PROMPT,
       payload,
+      responseSchema: PROCUREMENT_RESPONSE_SCHEMA,
       think: false,
       temperature: this.settings.procurementTemperature,
       numPredict: this.settings.procurementNumPredict,

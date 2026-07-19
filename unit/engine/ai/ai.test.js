@@ -13,6 +13,7 @@ describe('AI validation and fallback', () => {
     expect(parseModelJson('```json\n{"actionId":2}\n```')).toEqual({ actionId: 2 });
     expect(parseModelJson('Answer: {"actionId":3} done')).toEqual({ actionId: 3 });
     expect(() => parseModelJson('not json')).toThrow('INVALID_MODEL_JSON');
+    expect(() => parseModelJson('Answer: {"items":[1,2}')).toThrow('INVALID_MODEL_JSON');
   });
 
   it('normalizes execution order by removing duplicates and unknown IDs', () => {
@@ -264,14 +265,24 @@ describe('AI validation and fallback', () => {
     expect(calls.every((call) => call.payload.requestedLanguage === 'Russian')).toBe(true);
     expect(calls.find((call) => call.role === 'headquarters').payload.strategicObjectives)
       .toHaveProperty('victoryCondition', 'OPPONENT_CONTROLS_ZERO_PLANETS');
+    expect(calls.find((call) => call.role === 'headquarters').payload)
+      .not.toHaveProperty('requiredOutput');
     expect(calls.find((call) => call.role === 'unit').payload.missionProfile)
       .toMatchObject({
         semanticClass: 'COLONY_SHIP',
         missionObjective: expect.stringContaining('COLONIZE_A_NEUTRAL_PLANET'),
       });
+    const headquartersApiCall = client.chat.mock.calls
+      .find(([request]) => request.role === 'headquarters')[0];
+    expect(headquartersApiCall.responseSchema).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      required: expect.arrayContaining(['doctrine', 'unitRecommendations', 'executionOrder']),
+    });
     const procurement = calls.find((call) => call.role === 'procurement');
     expect(procurement.payload.economy).toHaveProperty('own');
     expect(procurement.payload.economy).toHaveProperty('enemy');
+    expect(procurement.payload).not.toHaveProperty('requiredOutput');
     expect(engine.getSnapshot().commandReports.map((report) => report.role))
       .toEqual(['procurement', 'headquarters']);
     expect(engine.getSnapshot().unitReports[0]).toMatchObject({

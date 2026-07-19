@@ -1,4 +1,5 @@
 import { HEADQUARTERS_PROMPT } from './prompts/prompts.js';
+import { HEADQUARTERS_RESPONSE_SCHEMA } from './responseSchemas.js';
 import { validateHeadquartersPlan } from './validation/validators.js';
 
 export class HeadquartersAgent {
@@ -15,6 +16,7 @@ export class HeadquartersAgent {
       model: this.settings.headquartersDecisionModel,
       system: HEADQUARTERS_PROMPT,
       payload,
+      responseSchema: HEADQUARTERS_RESPONSE_SCHEMA,
       think,
       temperature: this.settings.headquartersTemperature,
       numPredict: think

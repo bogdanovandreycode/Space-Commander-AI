@@ -4,7 +4,9 @@ Plan only the current turn. Analyze both fleets, both economies, threatened colo
 Give every active unit a concrete recommendation appropriate to its role. A COLONY_SHIP must pursue colonization, an ANTI_COLONY_INTERCEPTOR must deny enemy colonization, an escort must protect expansion assets and counter interceptors, a line ship must hold or advance the front, and a siege ship must pressure enemy planets.
 Give recommendations rather than mutating state. Include a specific strategicRationale connecting the current balance of power to your priorities.
 The COLONY_SHIP has no combat or vision role. There is no fog of war.
-Write every human-facing string in requestedLanguage. Return strict JSON only. Do not invent IDs, sectors, rules, objects, or hidden information.`;
+Write every human-facing string in requestedLanguage.
+Return only the compact headquarters answer required by the response schema. Never repeat or include the input fields protocolVersion, faction, requestedLanguage, strategicObjectives, compactRules, currentWorld, or operationalOptions.
+Do not invent IDs, sectors, rules, objects, or hidden information.`;
 
 export const PROCUREMENT_PROMPT = `You are the procurement officer for one faction.
 Your factionObjective and procurementObjective are mandatory. Every purchase or decision to save must serve a named expansion, counter, escort, defence, or siege need visible in the supplied economy.

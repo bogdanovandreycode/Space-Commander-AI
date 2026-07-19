@@ -16,14 +16,24 @@ export class OllamaClient {
     this.settings = settings;
   }
 
-  async chat({ role, model, system, payload, think, temperature, numPredict, contextSize }) {
+  async chat({
+    role,
+    model,
+    system,
+    payload,
+    responseSchema,
+    think,
+    temperature,
+    numPredict,
+    contextSize,
+  }) {
     const started = performance.now();
     const request = {
       model,
       stream: false,
       think,
       keep_alive: this.settings.keepAlive,
-      format: 'json',
+      format: responseSchema ?? 'json',
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: JSON.stringify(payload) },
@@ -40,7 +50,9 @@ export class OllamaClient {
 
     if ((!content || !String(content).trim()) && response?.done_reason === 'length') {
       retries = 1;
-      const recovery = await this.#request(this.#recoveryRequest(request, payload, numPredict));
+      const recovery = await this.#request(
+        this.#recoveryRequest(request, system, payload, numPredict),
+      );
       content = recovery?.message?.content;
     }
 
@@ -50,7 +62,9 @@ export class OllamaClient {
     } catch (error) {
       if (retries > 0) throw error;
       retries = 1;
-      const recovery = await this.#request(this.#recoveryRequest(request, payload, numPredict));
+      const recovery = await this.#request(
+        this.#recoveryRequest(request, system, payload, numPredict),
+      );
       data = parseModelJson(recovery?.message?.content);
     }
     this.diagnostics?.record({
@@ -70,14 +84,15 @@ export class OllamaClient {
     return { data, raw: response };
   }
 
-  #recoveryRequest(request, payload, numPredict) {
+  #recoveryRequest(request, system, payload, numPredict) {
     return {
       ...request,
       think: false,
       messages: [
         {
           role: 'system',
-          content: 'Return exactly one valid JSON object required by the supplied protocol. Include no reasoning, explanation, or Markdown.',
+          content: `${system}
+CRITICAL OUTPUT RULE: Produce only the small answer object described by the response schema. Do not repeat, quote, summarize, or wrap the input payload. Include no reasoning, explanation, or Markdown outside the JSON object.`,
         },
         { role: 'user', content: JSON.stringify(payload) },
       ],

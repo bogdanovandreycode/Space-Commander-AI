@@ -81,15 +81,6 @@ export class MultiAgentTurnOrchestrator {
         unitId: unit.id,
         legalActions: this.engine.generateLegalActionsForUnit(unit.id).map(compactAction),
       })),
-      requiredOutput: {
-        doctrine: 'string',
-        commanderComment: 'short string',
-        strategicRationale: 'short explanation',
-        priorities: [],
-        unitRecommendations: [],
-        executionOrder: ['integer unit IDs'],
-        procurementDirective: {},
-      },
     };
     let headquartersPlan;
     let headquartersMode = 'primary';
@@ -128,7 +119,7 @@ export class MultiAgentTurnOrchestrator {
         );
         this.onActivity({
           stage: 'headquarters-offline',
-          message: 'Связь со штабом потеряна. Корабли действуют самостоятельно по обстановке.',
+          message: 'Штабные каналы не предоставили допустимый план. Корабли действуют самостоятельно по обстановке.',
         });
         this.#saveOfflineHeadquartersReport(faction, headquartersPlan);
       }
@@ -204,11 +195,6 @@ export class MultiAgentTurnOrchestrator {
         commandLinkStatus: headquartersPlan.decentralized ? 'OFFLINE' : 'ONLINE',
         repairIntentions,
         legalPurchases,
-        requiredOutput: {
-          purchaseActionIds: ['integer IDs'],
-          spendingPosture: 'SAVE|SPEND|COUNTER|EXPAND',
-          rationale: 'short explanation',
-        },
       }, legalPurchases, snapshot.factions[faction].credits, headquartersPlan.procurementDirective);
     } catch (error) {
       this.onActivity({ stage: 'procurement-error', message: 'Закупка пропущена: сохранены кредиты.' });
@@ -366,8 +352,8 @@ export class MultiAgentTurnOrchestrator {
   #createDecentralizedPlan(units, credits, primaryError, reserveError) {
     return {
       doctrine: 'DECENTRALIZED_OPERATIONS',
-      commanderComment: 'Корабли завершили ход без связи со штабом.',
-      rationale: 'Основной и резервный штабные каналы недоступны; капитаны оценивают обстановку самостоятельно.',
+      commanderComment: 'Корабли завершили ход в автономном режиме.',
+      rationale: 'Основной и резервный штабные каналы не предоставили допустимый план; капитаны оценивают обстановку самостоятельно.',
       priorities: [],
       unitRecommendations: [],
       executionOrder: units.map((unit) => unit.id).sort((a, b) => a - b),
@@ -393,8 +379,8 @@ export class MultiAgentTurnOrchestrator {
       faction,
       round: this.engine.getSnapshot().round,
       status: 'FAILED',
-      title: 'Связь со штабом потеряна',
-      narrative: 'Основной и резервный командные каналы не ответили. Капитаны получили право действовать самостоятельно по фактической обстановке в своих секторах.',
+      title: 'Штабной план недоступен',
+      narrative: 'Основной и резервный командные каналы не ответили либо вернули план, не прошедший проверку. Капитаны получили право действовать самостоятельно по фактической обстановке в своих секторах.',
       rationale: plan.rationale,
     });
     this.onEvent({ eventType: 'COMMAND_REPORT', role: 'headquarters', report });
@@ -470,6 +456,9 @@ export class MultiAgentTurnOrchestrator {
       return 'Нет связи с Ollama. Проверьте сервис, OLLAMA_ORIGINS и доступ браузера к localhost.';
     }
     if (error?.message === 'OLLAMA_TIMEOUT') return 'Ollama не ответила вовремя.';
+    if (['EMPTY_MODEL_RESPONSE', 'INVALID_MODEL_JSON'].includes(error?.message)) {
+      return 'Модель вернула пустой или неполный JSON.';
+    }
     return `Ошибка AI: ${error?.message ?? String(error)}`;
   }
 }

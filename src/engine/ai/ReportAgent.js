@@ -1,4 +1,5 @@
 import { REPORT_PROMPTS } from './prompts/prompts.js';
+import { REPORT_RESPONSE_SCHEMA } from './responseSchemas.js';
 import { validateReport } from './validation/validators.js';
 
 export class ReportAgent {
@@ -14,6 +15,7 @@ export class ReportAgent {
       model: this.settings[`${this.role}ReportModel`],
       system: REPORT_PROMPTS[this.role],
       payload: { reportRole: this.role, ...payload },
+      responseSchema: REPORT_RESPONSE_SCHEMA,
       think: false,
       temperature: this.settings.reportTemperature,
       numPredict: this.settings.reportNumPredict,
