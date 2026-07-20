@@ -241,7 +241,11 @@ describe('AI validation and fallback', () => {
     const orchestrator = new MultiAgentTurnOrchestrator({
       engine,
       client,
-      settings: { ...DEFAULT_AI_SETTINGS, reportsEnabled: true },
+      settings: {
+        ...DEFAULT_AI_SETTINGS,
+        reasoningEnabled: false,
+        reportsEnabled: true,
+      },
     });
 
     const result = await orchestrator.runAiTurn();
@@ -262,6 +266,7 @@ describe('AI validation and fallback', () => {
     expect(roles.indexOf('procurement')).toBeLessThan(roles.indexOf('procurement-report'));
     expect(roles.indexOf('unit')).toBeLessThan(roles.indexOf('unit-report'));
     expect(maximumConcurrentRequests).toBe(1);
+    expect(client.chat.mock.calls.every(([request]) => request.think === false)).toBe(true);
     expect(calls.every((call) => call.payload.requestedLanguage === 'Russian')).toBe(true);
     expect(calls.find((call) => call.role === 'headquarters').payload.strategicObjectives)
       .toHaveProperty('victoryCondition', 'OPPONENT_CONTROLS_ZERO_PLANETS');

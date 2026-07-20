@@ -16,7 +16,7 @@ export class ReportAgent {
       system: REPORT_PROMPTS[this.role],
       payload: { reportRole: this.role, ...payload },
       responseSchema: REPORT_RESPONSE_SCHEMA,
-      think: false,
+      think: Boolean(this.settings.reasoningEnabled),
       temperature: this.settings.reportTemperature,
       numPredict: this.settings.reportNumPredict,
       contextSize: this.settings.reportContextSize,

@@ -58,7 +58,7 @@ export class MultiAgentTurnOrchestrator {
     const reserveHeadquartersAgent = new HeadquartersAgent(this.client, {
       ...this.settings,
       headquartersDecisionModel: this.settings.headquartersFallbackModel,
-      headquartersThink: false,
+      reasoningEnabled: false,
       headquartersTemperature: 0,
       headquartersNumPredict: Math.min(this.settings.headquartersNumPredict, 900),
     }, 'headquarters-fallback');
@@ -85,7 +85,12 @@ export class MultiAgentTurnOrchestrator {
     let headquartersPlan;
     let headquartersMode = 'primary';
     try {
-      this.onActivity({ stage: 'headquarters', message: 'Штаб анализирует карту…' });
+      this.onActivity({
+        stage: 'headquarters',
+        message: `Штаб анализирует карту (reasoning ${
+          this.settings.reasoningEnabled ? 'включён' : 'отключён'
+        })…`,
+      });
       headquartersPlan = await headquartersAgent.decide(
         headquartersRequest,
         aiUnits,

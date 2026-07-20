@@ -113,6 +113,8 @@ describe('UiShell contextual interface', () => {
     ui.openSettings(settings);
     expect(root.querySelectorAll('select[name$="Model"]')).toHaveLength(7);
     expect(root.querySelector('select[name="headquartersFallbackModel"]')).toBeTruthy();
+    expect(root.querySelector('input[name="reasoningEnabled"]')).toBeTruthy();
+    expect(root.querySelector('input[name="headquartersThink"]')).toBeNull();
     ui.setModelOptions(['zeta:1', 'alpha:1'], settings);
     const select = root.querySelector('select[name="unitReportModel"]');
     expect(select.value).toBe('missing:latest');

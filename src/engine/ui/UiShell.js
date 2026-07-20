@@ -192,7 +192,7 @@ export class UiShell {
     ]);
     const settings = {};
     for (const [key, value] of form.entries()) settings[key] = numberKeys.has(key) ? Number(value) : value;
-    for (const key of ['headquartersThink', 'reportsEnabled', 'fallbackEnabled', 'debug', 'llmEnabled']) {
+    for (const key of ['reasoningEnabled', 'reportsEnabled', 'fallbackEnabled', 'debug', 'llmEnabled']) {
       settings[key] = this.refs.settingsForm.elements.namedItem(key).checked;
     }
     return settings;
@@ -602,7 +602,7 @@ export class UiShell {
       ${input('procurementContextSize', 'Procurement num_ctx', 'number')}
       ${input('reportContextSize', 'Report num_ctx', 'number')}
       <label class="check"><input name="llmEnabled" type="checkbox"><span>LLM AI enabled</span></label>
-      <label class="check"><input name="headquartersThink" type="checkbox"><span>HQ think</span></label>
+      <label class="check"><input name="reasoningEnabled" type="checkbox"><span>Reasoning for all AI roles</span></label>
       <label class="check"><input name="reportsEnabled" type="checkbox"><span>Reports enabled</span></label>
       <label class="check"><input name="fallbackEnabled" type="checkbox"><span>Fallback enabled</span></label>
       <label class="check"><input name="debug" type="checkbox"><span>Debug diagnostics</span></label>

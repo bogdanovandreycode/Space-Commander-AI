@@ -15,7 +15,7 @@ export class UnitAgent {
       system: UNIT_PROMPT,
       payload,
       responseSchema: UNIT_RESPONSE_SCHEMA,
-      think: false,
+      think: Boolean(this.settings.reasoningEnabled),
       temperature: this.settings.unitTemperature,
       numPredict: this.settings.unitNumPredict,
       contextSize: this.settings.unitContextSize,

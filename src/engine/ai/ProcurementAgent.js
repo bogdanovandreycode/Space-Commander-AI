@@ -15,7 +15,7 @@ export class ProcurementAgent {
       system: PROCUREMENT_PROMPT,
       payload,
       responseSchema: PROCUREMENT_RESPONSE_SCHEMA,
-      think: false,
+      think: Boolean(this.settings.reasoningEnabled),
       temperature: this.settings.procurementTemperature,
       numPredict: this.settings.procurementNumPredict,
       contextSize: this.settings.procurementContextSize,

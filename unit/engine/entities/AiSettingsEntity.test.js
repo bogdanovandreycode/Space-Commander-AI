@@ -39,4 +39,14 @@ describe('AiSettingsEntity', () => {
       reportNumPredict: 180,
     }).reportNumPredict).toBe(180);
   });
+
+  it('migrates the old headquarters switch to global reasoning', () => {
+    const disabled = createAiSettingsEntity({ headquartersThink: false });
+    const enabled = createAiSettingsEntity({ headquartersThink: true });
+
+    expect(disabled.reasoningEnabled).toBe(false);
+    expect(enabled.reasoningEnabled).toBe(true);
+    expect(disabled.settingsSchemaVersion).toBe(3);
+    expect(disabled).not.toHaveProperty('headquartersThink');
+  });
 });

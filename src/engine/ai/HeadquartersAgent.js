@@ -10,7 +10,7 @@ export class HeadquartersAgent {
   }
 
   async decide(payload, units, planets, credits) {
-    const think = Boolean(this.settings.headquartersThink);
+    const think = Boolean(this.settings.reasoningEnabled);
     const response = await this.client.chat({
       role: this.role,
       model: this.settings.headquartersDecisionModel,

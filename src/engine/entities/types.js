@@ -8,7 +8,7 @@
  * @property {string} procurementReportModel
  * @property {string} unitDecisionModel
  * @property {string} unitReportModel
- * @property {boolean} headquartersThink
+ * @property {boolean} reasoningEnabled
  * @property {number} headquartersTemperature
  * @property {number} procurementTemperature
  * @property {number} unitTemperature

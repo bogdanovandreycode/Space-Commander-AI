@@ -1,5 +1,5 @@
 export const DEFAULT_AI_SETTINGS = Object.freeze({
-  settingsSchemaVersion: 2,
+  settingsSchemaVersion: 3,
   ollamaUrl: 'http://localhost:11434',
   headquartersDecisionModel: 'deepseek-r1:8b',
   headquartersFallbackModel: 'gemma3:4b',
@@ -8,7 +8,7 @@ export const DEFAULT_AI_SETTINGS = Object.freeze({
   procurementReportModel: 'gemma3:4b',
   unitDecisionModel: 'gemma3:4b',
   unitReportModel: 'gemma3:4b',
-  headquartersThink: true,
+  reasoningEnabled: true,
   headquartersTemperature: 0.1,
   procurementTemperature: 0,
   unitTemperature: 0,
@@ -39,6 +39,7 @@ export function createAiSettingsEntity(overrides = {}) {
   const settings = {
     ...DEFAULT_AI_SETTINGS,
     ...source,
+    settingsSchemaVersion: DEFAULT_AI_SETTINGS.settingsSchemaVersion,
     headquartersDecisionModel: source.headquartersDecisionModel
       ?? source.headquartersModel
       ?? DEFAULT_AI_SETTINGS.headquartersDecisionModel,
@@ -59,11 +60,20 @@ export function createAiSettingsEntity(overrides = {}) {
     unitReportModel: source.unitReportModel
       ?? source.reportModel
       ?? DEFAULT_AI_SETTINGS.unitReportModel,
+    reasoningEnabled: source.reasoningEnabled
+      ?? source.headquartersThink
+      ?? DEFAULT_AI_SETTINGS.reasoningEnabled,
     reportNumPredict: source.settingsSchemaVersion == null && source.reportNumPredict === 180
       ? DEFAULT_AI_SETTINGS.reportNumPredict
       : (source.reportNumPredict ?? DEFAULT_AI_SETTINGS.reportNumPredict),
   };
-  for (const legacyKey of ['headquartersModel', 'procurementModel', 'unitModel', 'reportModel']) {
+  for (const legacyKey of [
+    'headquartersModel',
+    'procurementModel',
+    'unitModel',
+    'reportModel',
+    'headquartersThink',
+  ]) {
     delete settings[legacyKey];
   }
   return settings;
